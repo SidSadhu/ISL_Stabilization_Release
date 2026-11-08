@@ -30,6 +30,8 @@
   let lastResultAt = 0;
   const resultIntervals = [];
   let latest = null;
+  const recentSamples = [];
+  let readiness = {ready:false, samples:0, poseDetected:0, handDetected:0};
   let sampleCanvas = null;
   let sampleContext = null;
 
@@ -99,11 +101,28 @@
       drawPoints(hand, '#39d99a', Math.max(2.5, canvas.width / 250));
     }
 
-    $('livePoseStatus').textContent = visiblePoseCount >= 8
-      ? `Detected (${visiblePoseCount}/25)` : `Weak (${visiblePoseCount}/25)`;
-    $('liveHandsStatus').textContent = `${validHands.length} detected`;
+    const poseOK = visiblePoseCount >= 8;
+    const handOK = validHands.length >= 1;
+    recentSamples.push({poseOK, handOK, handCount:validHands.length, visiblePoseCount});
+    if (recentSamples.length > 5) recentSamples.shift();
+    const poseDetected = recentSamples.filter(item => item.poseOK).length;
+    const handDetected = recentSamples.filter(item => item.handOK).length;
+    const sampleCount = recentSamples.length;
+    const denominator = Math.max(1, sampleCount);
+    readiness = {
+      ready: sampleCount === 5 && poseDetected >= 4 && handDetected >= 4, // hand visibility is advisory until the actual sign is captured
+      samples: sampleCount,
+      poseDetected,
+      handDetected,
+      latestHandCount: validHands.length,
+      latestPoseCount: visiblePoseCount
+    };
+    $('livePoseStatus').textContent = `${poseDetected}/${denominator} recent`;
+    $('liveHandsStatus').textContent = `${validHands.length} now · ${handDetected}/${denominator} recent`;
+    if ($('liveReadyStatus')) $('liveReadyStatus').textContent = readiness.ready ? (handDetected >= 2 ? 'Ready · hands seen' : 'Ready · hands advisory') : `Preparing (${poseDetected}/${denominator} pose · ${handDetected}/${denominator} hand)`;
     const labels = (result.handLabels || []).filter(Boolean);
-    $('liveHandsStatus').title = labels.length ? `Detector labels: ${labels.join(', ')}` : 'Hand count from local backend MediaPipe';
+    $('liveHandsStatus').title = labels.length ? `Latest detector labels: ${labels.join(', ')}. Rolling window is the last ${sampleCount} processed preview frames.` : 'The count is the latest frame; recent count is the last five processed preview frames.';
+    window.dispatchEvent(new CustomEvent('isl-landmark-readiness', {detail:readiness}));
     // Measure result-arrival intervals on this browser clock. Echoed source-frame
     // timestamps can be stale or come from a previous connection; subtracting them
     // caused impossible negative diagnostic rates in some reconnect sequences.
@@ -127,19 +146,19 @@
     $('liveRateStatus').title = frameAgeMs == null ? 'Result update rate measured on response arrival.' : `Approximate age of the source frame when rendered: ${Math.round(frameAgeMs)} ms. This preview is sampled and not a 25 FPS tracking stream.`;
     latest = { handCount: validHands.length, visiblePoseCount, latencyMs: result.latencyMs, frameAgeMs };
 
-    if (validHands.length === 0) {
-      setMessage('No hands detected by the local backend detector. Move your hands fully into the camera frame and keep fingertips visible.', 'warn');
-    } else if (visiblePoseCount < 8) {
-      setMessage(`${validHands.length} hand(s) detected, but upper-body pose visibility is weak. Keep shoulders, elbows and wrists in view.`, 'warn');
-    } else if (validHands.length === 1) {
-      setMessage('One hand detected by the local backend. This can be valid for one-handed signs; bring both hands into frame for two-handed signs.', 'good');
+    if (readiness.ready && handDetected >= 2) {
+      setMessage('Upper-body framing is stable and the preview has detected a hand in recent samples. The countdown can begin. Keep the signing hand visible during the gesture.', 'good');
+    } else if (readiness.ready) {
+      setMessage('Upper-body framing is stable. A hand is not consistently detected while resting; this does not block the countdown. Raise and keep your signing hand in frame during the gesture. The recorded clip is still checked for hand coverage.', 'good');
+    } else if (sampleCount < 5) {
+      setMessage(`Checking upper-body framing (${sampleCount}/5 samples). Keep head, shoulders and upper torso visible. Hand visibility is monitored but is not a pre-capture blocker.`, '');
     } else {
-      setMessage(`Both hands detected by the local backend (${Number(result.latencyMs || 0).toFixed(0)} ms for this diagnostic frame). Keep wrists and fingertips in view.`, 'good');
+      setMessage(`Not ready yet: stable upper-body pose ${poseDetected}/5 (need 4/5). Hand detections ${handDetected}/5 are advisory. Move back until your head, shoulders and torso are inside the frame.`, 'warn');
     }
   }
 
   function scheduleFrame(delayOverride = null) {
-    if (scheduled || failed || !toggle.checked || !connected || busyState === 'processing'
+    if (scheduled || failed || !toggle.checked || !connected || busyState !== 'ready'
       || video.readyState < 2 || video.videoWidth < 2 || frameInFlight
       || !socket || socket.readyState !== WebSocket.OPEN) return;
     scheduled = true;
@@ -155,7 +174,7 @@
   }
 
   function sendDiagnosticFrame() {
-    if (!toggle.checked || !connected || busyState === 'processing' || frameInFlight
+    if (!toggle.checked || !connected || busyState !== 'ready' || frameInFlight
       || !socket || socket.readyState !== WebSocket.OPEN
       || video.readyState < 2 || video.videoWidth < 2) return;
     try {
@@ -190,6 +209,9 @@
   function stopDiagnostics(clear = true) {
     lastResultAt = 0;
     resultIntervals.length = 0;
+    recentSamples.length = 0;
+    readiness = {ready:false, samples:0, poseDetected:0, handDetected:0};
+    window.dispatchEvent(new CustomEvent('isl-landmark-readiness', {detail:readiness}));
     if (socket) {
       try { socket.close(1000, 'Live diagnostics stopped'); } catch {}
     }
@@ -255,7 +277,7 @@
         setMessage('Could not connect to the local landmark-preview WebSocket. Restart the app with the updated patch and reload the page.', 'warn');
       });
       socket.addEventListener('close', (event) => {
-        const wasExpected = event.code === 1000 && !toggle.checked;
+        const wasExpected = event.code === 1000 && (!toggle.checked || busyState !== 'ready');
         socket = null;
         connected = false;
         connecting = false;
@@ -289,14 +311,26 @@
     updateCanvasSize();
     if (toggle.checked) startDiagnostics();
   });
+  window.addEventListener('isl-readiness-arm', () => {
+    recentSamples.length = 0;
+    readiness = {ready:false, samples:0, poseDetected:0, handDetected:0};
+    if ($('livePoseStatus')) $('livePoseStatus').textContent = '0/5 recent';
+    if ($('liveHandsStatus')) $('liveHandsStatus').textContent = '0 now · 0/5 recent';
+    if ($('liveReadyStatus')) $('liveReadyStatus').textContent = 'Move into frame';
+    setMessage('Capture is armed. Move away from the laptop and bring your head, shoulders and upper torso into view. Hand visibility is monitored, but it will not block the countdown while your hands are resting.', '');
+    window.dispatchEvent(new CustomEvent('isl-landmark-readiness', {detail:readiness}));
+    scheduleFrame();
+  });
+
   window.addEventListener('isl-capture-state', (event) => {
     busyState = event.detail?.state || 'ready';
-    if (busyState === 'processing') {
-      scheduled = false;
-      // Keep the socket open, but yield CPU to full recorded-clip extraction.
+    if (busyState !== 'ready') {
+      // Release the second MediaPipe session during countdown capture and post-capture
+      // extraction. This avoids competing with the classifier's full-clip extractor.
+      stopDiagnostics(true);
       return;
     }
-    scheduleFrame();
+    if (toggle.checked) startDiagnostics();
   });
   video.addEventListener('loadeddata', () => {
     updateCanvasSize();
@@ -307,6 +341,7 @@
 
   window.ISLLandmarkDiagnostics = {
     getLatest: () => latest,
+    getReadiness: () => ({...readiness}),
     stop: () => stopDiagnostics(true),
   };
 })();

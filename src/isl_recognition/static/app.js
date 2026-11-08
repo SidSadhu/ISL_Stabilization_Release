@@ -30,8 +30,11 @@
   let referenceClasses = [];
   let selectedReference = null;
   let expectedLabel = null;
-  let capturing = false, submitting = false, captureStartedAt = null, captureMaxSeconds = 6.0, lastVideoTime = -1, lastFrameCount = 0, clientDropped = 0, serverDropped = 0;
+  let capturing = false, submitting = false, captureStartedAt = null, captureMaxSeconds = 6.0, captureTargetSeconds = null, lastVideoTime = -1, lastFrameCount = 0, clientDropped = 0, serverDropped = 0;
+  const guidedCaptureSeconds = 2.6;
+  const readinessSetupGraceMs = 6000; // time to step away from the laptop after arming
   let captureCountdownToken = 0;
+  let cancelReadinessWait = null;
 
   function setDot(id, state) { const el = $(id); el.className = `dot ${state}`; }
   function message(text, kind = '') { $('captureMessage').textContent = text; $('captureMessage').className = `message ${kind}`.trim(); }
@@ -83,7 +86,24 @@
     if (!navigator.mediaDevices?.getUserMedia) throw new Error('This browser does not support getUserMedia. Open the app on localhost using a modern browser.');
     const streamIsLive = stream && stream.getVideoTracks().some((track) => track.readyState === 'live');
     if (!streamIsLive) {
-      stream = await navigator.mediaDevices.getUserMedia({video: {width:{ideal:640}, height:{ideal:480}, facingMode:'user'}, audio:false});
+      const preferredConstraints = {
+        video: {
+          width: {ideal: 1280}, height: {ideal: 720},
+          aspectRatio: {ideal: 16 / 9}, frameRate: {ideal: 25},
+          facingMode: 'user'
+        },
+        audio: false
+      };
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(preferredConstraints);
+      } catch (preferredError) {
+        // Some built-in webcams expose only 4:3 modes. Fall back without cropping
+        // or failing camera startup; the actual settings are displayed to the user.
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {width:{ideal:640}, height:{ideal:480}, frameRate:{ideal:25}, facingMode:'user'},
+          audio:false
+        });
+      }
     }
     video.srcObject = stream;
     video.muted = true;
@@ -109,6 +129,29 @@
     // some of the user's arms/hands in the UI even though the raw frame was uncropped.
     videoWrap.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
     videoWrap.dataset.cameraResolution = `${video.videoWidth}x${video.videoHeight}`;
+    const activeTrack = stream?.getVideoTracks?.()[0];
+    const trackSettings = activeTrack?.getSettings ? activeTrack.getSettings() : {};
+    const actualAspect = Number(trackSettings.aspectRatio) || (video.videoWidth / video.videoHeight);
+    window._islCameraSettings = {
+      width: Number(trackSettings.width) || video.videoWidth,
+      height: Number(trackSettings.height) || video.videoHeight,
+      frameRate: Number(trackSettings.frameRate) || null,
+      aspectRatio: actualAspect,
+      facingMode: trackSettings.facingMode || 'unknown',
+      videoElementWidth: video.videoWidth,
+      videoElementHeight: video.videoHeight,
+      requestedWidth: 1280,
+      requestedHeight: 720,
+      requestedFrameRate: 25,
+      requestedAspectRatio: '16:9'
+    };
+    const cameraInfo = $('cameraInfo');
+    if (cameraInfo) {
+      const fpsText = window._islCameraSettings.frameRate ? ` · ${window._islCameraSettings.frameRate.toFixed(1)} FPS` : '';
+      const ratioText = Math.abs(actualAspect - (16 / 9)) < 0.03 ? '16:9' : `${actualAspect.toFixed(2)}:1`;
+      cameraInfo.textContent = `${window._islCameraSettings.width} × ${window._islCameraSettings.height}${fpsText} · ${ratioText}`;
+      cameraInfo.title = 'Actual browser camera track settings. The application does not crop or stretch the classifier input.';
+    }
     setCameraPreviewState(true);
     $('captureStatus').textContent = 'Camera ready';
     window.dispatchEvent(new CustomEvent('isl-camera-ready'));
@@ -135,7 +178,12 @@
       setCameraPreviewState(Boolean(video.srcObject && video.videoWidth > 1));
       capturing = true; submitting = false; captureStartedAt = performance.now(); lastVideoTime = video.currentTime; lastFrameCount = 0; clientDropped = 0; serverDropped = 0;
       window.dispatchEvent(new CustomEvent('isl-capture-state', {detail:{state:'capturing'}}));
-      $('captureStatus').textContent = 'Capturing one gesture'; $('startButton').disabled = true; $('stopButton').disabled = false;
+      const timedPractice = $('autoStopToggle')?.checked !== false;
+      captureTargetSeconds = timedPractice ? guidedCaptureSeconds : captureMaxSeconds;
+      $('captureStatus').textContent = timedPractice ? 'Timed capture' : 'Capturing one gesture';
+      $('startButton').disabled = true; $('stopButton').disabled = timedPractice;
+      $('autoStopToggle').disabled = true;
+      $('captureCountdownOverlay').hidden = true;
       $('framesCount').textContent = '0 / 169 captured'; $('frameBadge').textContent = '0 captured frames'; $('progressBar').style.width = '0%';
       $('droppedCount').textContent = '0'; $('captureDuration').textContent = '0.0 s';
       $('predictionWord').textContent = '…'; $('predictionLabel').textContent = 'Capture in progress'; $('outcomeValue').textContent = 'Capturing';
@@ -143,12 +191,15 @@
       durationTimer = setInterval(() => {
         if (!captureStartedAt || !capturing) return;
         const elapsed = (performance.now() - captureStartedAt) / 1000;
-        $('captureDuration').textContent = `${elapsed.toFixed(1)} / ${captureMaxSeconds.toFixed(1)} s`;
-        $('progressBar').style.width = `${Math.min(100, elapsed / captureMaxSeconds * 100)}%`;
-        if (elapsed >= captureMaxSeconds) submitCapture('time-limit');
+        const targetSeconds = captureTargetSeconds || captureMaxSeconds;
+        $('captureDuration').textContent = `${elapsed.toFixed(1)} / ${targetSeconds.toFixed(1)} s`;
+        $('progressBar').style.width = `${Math.min(100, elapsed / targetSeconds * 100)}%`;
+        if (elapsed >= targetSeconds) submitCapture(timedPractice ? 'guided-time-limit' : 'time-limit');
       }, 50);
       frameTimer = setInterval(sendFrame, 40);
-      message(`Recording now. Perform one complete isolated sign, then press Stop & recognise. The recording auto-stops at ${captureMaxSeconds.toFixed(0)} seconds; extraction runs afterward so slow MediaPipe processing does not drop camera frames.`, 'success');
+      message(timedPractice
+        ? `Guided recording is active for ${guidedCaptureSeconds.toFixed(1)} seconds and will stop automatically. No need to press Stop or move toward the controls; stay in position until it finishes.`
+        : `Recording now. Perform one complete isolated sign, then press Stop & recognise. The recording auto-stops at ${captureMaxSeconds.toFixed(0)} seconds; extraction runs afterward so slow MediaPipe processing does not drop camera frames.`, 'success');
     } else if (msg.type === 'progress' && msg.phase === 'recording') {
       lastFrameCount = Number(msg.frames || 0); serverDropped = Number(msg.queue_dropped || 0);
       $('framesCount').textContent = `${lastFrameCount} / 169 captured`; $('frameBadge').textContent = `${lastFrameCount} captured frames`;
@@ -178,6 +229,11 @@
       } else {
         message(msg.result?.reason || `Recognition outcome: ${msg.result?.outcome || msg.result?.status || 'unknown'}.`, msg.result?.outcome === 'accepted' ? 'success' : (msg.result?.outcome === 'error' || msg.result?.outcome === 'invalid_capture' ? 'error' : ''));
       }
+      if (msg.result?.debug_capture_saved && msg.result?.debug_capture_directory) {
+        message(`Capture diagnostics saved locally to ${msg.result.debug_capture_directory}. The folder contains opted-in JPEG frames, landmarks/features and timing data.`, 'success');
+      } else if (msg.result?.debug_capture_error) {
+        message(`Recognition finished, but debug files were not saved: ${msg.result.debug_capture_error}`, 'error');
+      }
     } else if (msg.type === 'cancelled') {
       onCaptureEnded('Capture cancelled.'); message(msg.message || 'Capture cancelled; no inference or command was run.');
     } else if (msg.type === 'error') {
@@ -192,10 +248,17 @@
     if (durationTimer) clearInterval(durationTimer); durationTimer = null;
     captureStartedAt = null; $('captureStatus').textContent = 'Processing recorded clip';
     $('startButton').disabled = true; $('stopButton').disabled = true;
-    const note = reason === 'time-limit' ? 'Maximum recording time reached. Extracting every captured frame now.' : 'Recording stopped. Extracting every captured frame now.';
+    const note = reason === 'guided-time-limit' ? 'Guided practice window complete. Extracting every captured frame now.' : (reason === 'time-limit' ? 'Maximum recording time reached. Extracting every captured frame now.' : 'Recording stopped. Extracting every captured frame now.');
     message(note + ' Processing may take several seconds; do not close this tab.', 'success');
     window.dispatchEvent(new CustomEvent('isl-capture-state', {detail:{state:'processing'}}));
-    ws.send(JSON.stringify({type:'stop', client_frames_dropped:clientDropped, diagnostic_mode:Boolean($('diagnosticOverride')?.checked)}));
+    ws.send(JSON.stringify({
+      type:'stop',
+      client_frames_dropped:clientDropped,
+      diagnostic_mode:Boolean($('diagnosticOverride')?.checked),
+      save_debug:Boolean($('saveDebugCapture')?.checked),
+      expected_label:expectedLabel || null,
+      camera_settings:window._islCameraSettings || null
+    }));
   }
 
   function sendFrame() {
@@ -211,30 +274,106 @@
   }
   function stopFrameSender() { if (frameTimer) clearInterval(frameTimer); frameTimer = null; }
   function cancelCaptureCountdown() { captureCountdownToken += 1; }
+  async function waitForStableReadiness(timeoutMs = 35000) {
+    if (!$('readinessToggle')?.checked) return;
+    const readinessToken = ++captureCountdownToken;
+    // Readiness uses the rolling local MediaPipe preview. Enable it if hidden.
+    if ($('landmarkToggle') && !$('landmarkToggle').checked) {
+      $('landmarkToggle').checked = true;
+      $('landmarkToggle').dispatchEvent(new Event('change'));
+    }
+
+    $('captureStatus').textContent = 'Armed — move into frame';
+    $('startButton').textContent = 'Cancel wait';
+    $('startButton').disabled = false;
+    $('captureCountdownCaption').textContent = 'MOVE INTO FRAME';
+    $('captureCountdownOverlay').hidden = false;
+    $('captureCountdownNumber').textContent = '…';
+    message(
+      `Capture is armed. Step away from the laptop and move into your signing position. The first ${(readinessSetupGraceMs / 1000).toFixed(0)} seconds are reserved for moving into place; then the app waits for stable upper-body pose in 4 of 5 recent samples. Hand visibility is monitored but does not block the countdown while your hands are resting; the recorded gesture is still checked for hand coverage. You do not need to click again. Click “Cancel wait” here to cancel.`,
+      'success'
+    );
+
+    await new Promise((resolve, reject) => {
+      let settled = false;
+      const acceptAfter = performance.now() + readinessSetupGraceMs;
+      const finish = (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        window.removeEventListener('isl-landmark-readiness', onReadiness);
+        window.removeEventListener('isl-readiness-wait-cancel', onExternalCancel);
+        document.removeEventListener('visibilitychange', onVisibility);
+        if (cancelReadinessWait === cancelThisWait) cancelReadinessWait = null;
+        if (error) reject(error); else resolve();
+      };
+      const onReadiness = (event) => {
+        if (readinessToken !== captureCountdownToken) {
+          finish(new Error('Readiness wait cancelled.'));
+        } else if (performance.now() >= acceptAfter && event.detail?.ready) {
+          finish();
+        }
+      };
+      const onExternalCancel = () => finish(new Error('Readiness wait cancelled by user.'));
+      const onVisibility = () => {
+        if (document.hidden) finish(new Error('Readiness wait cancelled because the app tab became hidden. Keep the app visible.'));
+      };
+      const cancelThisWait = () => finish(new Error('Readiness wait cancelled by user.'));
+      const timer = setTimeout(() => finish(new Error(
+        'Stable framing was not detected within 35 seconds. Check the preview and keep your upper body and one hand visible. You can turn off “Wait until framing is ready” to use the normal countdown.'
+      )), timeoutMs);
+
+      cancelReadinessWait = cancelThisWait;
+      window.addEventListener('isl-landmark-readiness', onReadiness);
+      window.addEventListener('isl-readiness-wait-cancel', onExternalCancel);
+      document.addEventListener('visibilitychange', onVisibility);
+      // Clear old samples so readiness must be re-established after this arm action.
+      window.dispatchEvent(new CustomEvent('isl-readiness-arm'));
+    });
+
+    $('captureCountdownOverlay').hidden = true;
+    $('startButton').textContent = 'Starting countdown…';
+  }
   async function countdownThenStart() {
     const token = ++captureCountdownToken;
+    const overlay = $('captureCountdownOverlay');
+    const number = $('captureCountdownNumber');
+    const caption = $('captureCountdownCaption');
     $('startButton').disabled = true;
-    $('captureStatus').textContent = 'Get ready';
-    for (const remaining of [2, 1]) {
-      message(`Get ready — recording starts in ${remaining} second${remaining === 1 ? '' : 's'}. Keep the complete gesture area inside the frame.`, 'success');
+    $('startButton').textContent = 'Countdown…';
+    $('captureStatus').textContent = 'Get ready — move into position';
+    for (const remaining of [3, 2, 1]) {
+      if (overlay) overlay.hidden = false;
+      if (number) number.textContent = String(remaining);
+      if (caption) caption.textContent = 'GET READY';
+      message(`Get ready — recording starts in ${remaining} second${remaining === 1 ? '' : 's'}. Move back into position now; recording will stop automatically in guided mode.`, 'success');
       await new Promise(resolve => setTimeout(resolve, 1000));
-      if (token !== captureCountdownToken) return;
+      if (token !== captureCountdownToken) {
+        if (overlay) overlay.hidden = true;
+        $('startButton').disabled = false;
+        $('captureStatus').textContent = 'Camera ready';
+        return;
+      }
     }
     if (token !== captureCountdownToken) return;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
+      if (overlay) overlay.hidden = true;
       $('startButton').disabled = false;
       $('captureStatus').textContent = 'Camera ready';
       throw new Error('The capture connection closed during the countdown. Please retry.');
     }
+    if (overlay) overlay.hidden = true;
     ws.send(JSON.stringify({type:'start'}));
   }
   function onCaptureEnded(status) {
     cancelCaptureCountdown();
     capturing = false; submitting = false; stopFrameSender();
     if (durationTimer) clearInterval(durationTimer); durationTimer = null;
-    captureStartedAt = null; $('captureStatus').textContent = status;
+    captureStartedAt = null; captureTargetSeconds = null; $('captureStatus').textContent = status;
+    $('autoStopToggle').disabled = false;
+    $('captureCountdownOverlay').hidden = true;
     window.dispatchEvent(new CustomEvent('isl-capture-state', {detail:{state:'ready'}}));
-    $('startButton').textContent = 'Start capture';
+    $('startButton').textContent = 'Arm capture';
     $('startButton').disabled = false; $('stopButton').disabled = true;
   }
 
@@ -250,6 +389,12 @@
       predLabel = `Candidate below ${(thresh*100).toFixed(0)}% threshold${sc} — shown for diagnostics only`;
     } else {
       predLabel = r.reason || r.outcome || 'No result';
+    }
+    if (r.outcome === 'accepted' && expectedLabel) {
+      const norm = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (norm(label) !== norm(expectedLabel)) {
+        predLabel = `Score threshold passed, but prediction does NOT match expected sign “${expectedLabel}”. Not a correct recognition.`;
+      }
     }
     $('predictionLabel').textContent = predLabel;
     // Show confidence hint for rejected predictions
@@ -274,10 +419,16 @@
       ).join('');
       candidateSection.hidden = candidates.length === 0;
     }
-    $('outcomeValue').textContent = r.outcome || r.status || 'Unknown';
+    const expectedNorm = String(expectedLabel || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const predictedNorm = String(label || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const expectedMismatch = Boolean(expectedNorm && predictedNorm && expectedNorm !== predictedNorm);
+    $('outcomeValue').textContent = r.outcome === 'accepted' && expectedMismatch
+      ? 'Score accepted · expected sign mismatch' : (r.outcome || r.status || 'Unknown');
     $('inferenceLatencyValue').textContent = fmtMs(r.inference_latency_ms);
     $('processingLatencyValue').textContent = fmtMs(r.processing_latency_ms);
     $('endToEndLatencyValue').textContent = fmtMs(r.end_to_end_latency_ms);
+    if ($('samplingRateValue')) $('samplingRateValue').textContent = Number.isFinite(Number(r.client_timestamp_fps)) ? `${Number(r.client_timestamp_fps).toFixed(1)} FPS` : '—';
+    if ($('frameGapValue')) $('frameGapValue').textContent = Number.isFinite(Number(r.frame_interval_median_ms)) ? `${Number(r.frame_interval_median_ms).toFixed(1)} ms` : '—';
     $('poseValue').textContent = r.pose_ratio == null ? '—' : fmtPct(r.pose_ratio);
     $('handValue').textContent = r.hand_ratio == null ? '—' : `${fmtPct(r.hand_ratio)} any hand`;
     const handDetail = `Hand slots: ${fmtPct(r.hand1_ratio)} / ${fmtPct(r.hand2_ratio)} · both: ${fmtPct(r.both_hand_ratio)}`;
@@ -382,6 +533,31 @@
     }
     renderReferenceList();
   }
+  function clearPreviousResultForNewAttempt() {
+    $('predictionWord').textContent = '—';
+    $('predictionLabel').textContent = 'Waiting for the next capture';
+    $('confidenceValue').textContent = '—';
+    $('confidenceBar').style.width = '0%';
+    if ($('confidenceHint')) $('confidenceHint').hidden = true;
+    if ($('candidateSection')) $('candidateSection').hidden = true;
+    if ($('candidateList')) $('candidateList').innerHTML = '';
+    $('outcomeValue').textContent = 'Waiting for capture';
+    for (const id of [
+      'inferenceLatencyValue', 'processingLatencyValue', 'endToEndLatencyValue',
+      'poseValue', 'handValue', 'hand1Value', 'hand2Value', 'bothHandsValue',
+      'featureExtractionLatencyValue', 'mediapipeP95Value'
+    ]) {
+      const element = $(id);
+      if (element) element.textContent = '—';
+    }
+    $('framesCount').textContent = '0 / 169 captured';
+    $('frameBadge').textContent = '0 captured frames';
+    $('droppedCount').textContent = '0';
+    $('captureDuration').textContent = '0.0 s';
+    $('progressBar').style.width = '0%';
+    renderExpectedComparison('—');
+  }
+
   function renderExpectedComparison(predictedLabel) {
     const box = $('comparisonBox');
     if (!expectedLabel) { box.hidden = true; return; }
@@ -390,10 +566,13 @@
     const predicted = String(predictedLabel || '').toLowerCase().replace(/[^a-z0-9]/g,'');
     $('expectedResultLabel').textContent = expected?.display_name || expectedLabel;
     const normalizedExpected = String(expectedLabel).toLowerCase().replace(/[^a-z0-9]/g,'');
-    const match = predicted === normalizedExpected;
-    $('expectedMatchValue').textContent = predictedLabel === '—' ? 'No prediction' : (match ? 'MATCH' : `Different: ${predictedLabel}`);
-    $('expectedMatchValue').className = match ? 'comparison-match' : 'comparison-mismatch';
-    $('comparisonNote').textContent = match ? 'The predicted class matches the selected expected gloss. This is a single practice result, not a validated accuracy measurement.' : 'A mismatch does not prove the model is wrong: ensure you copied the example, the entire sign is visible, and capture only one isolated gesture.';
+    const pending = !predictedLabel || predictedLabel === '—';
+    const match = !pending && predicted === normalizedExpected;
+    $('expectedMatchValue').textContent = pending ? 'Waiting for a prediction' : (match ? 'MATCH' : `Different: ${predictedLabel}`);
+    $('expectedMatchValue').className = pending ? '' : (match ? 'comparison-match' : 'comparison-mismatch');
+    $('comparisonNote').textContent = pending
+      ? 'The selected expected sign will be compared after the next capture is processed.'
+      : (match ? 'The predicted class matches the selected expected gloss. This is a single practice result, not a validated accuracy measurement.' : 'A mismatch does not prove the model is wrong: ensure you copied the example, the entire sign is visible, and capture only one isolated gesture.');
   }
   async function loadReferenceGallery() {
     try {
@@ -417,25 +596,41 @@
   }
 
   $('startButton').addEventListener('click', async () => {
+    // While armed and waiting, this same button becomes a safe Cancel action.
+    if (cancelReadinessWait) {
+      cancelCaptureCountdown();
+      window.dispatchEvent(new CustomEvent('isl-readiness-wait-cancel'));
+      $('startButton').textContent = 'Arm capture';
+      $('captureCountdownOverlay').hidden = true;
+      $('captureStatus').textContent = 'Camera ready';
+      message('Framing wait cancelled. You can arm capture again whenever you are ready.', '');
+      return;
+    }
     try {
       const cameraWasReady = Boolean(stream && stream.getVideoTracks().some((track) => track.readyState === 'live')
         && video.readyState >= 2 && video.videoWidth > 1);
       await ensureCamera();
       if (!cameraWasReady) {
-        $('startButton').textContent = 'Start capture';
-        message('Camera preview is ready. Check the live landmarks, adjust until your wrists and fingertips are visible, then press Start capture.', 'success');
+        $('startButton').textContent = 'Arm capture';
+        message(`Camera preview is ready (${window._islCameraSettings?.width || video.videoWidth} × ${window._islCameraSettings?.height || video.videoHeight}). Click Arm capture while beside the laptop, then step away into position. The app will start automatically when framing is stable; no second click is needed.`, 'success');
         return;
       }
       const health = await refreshHealth();
       if (!health?.model_ready) throw new Error(health?.model_error || 'Configure the official checkpoint and label map before recognition.');
       if (!health?.extractor_ready) throw new Error(health?.extractor_error || 'MediaPipe/OpenCV not available.');
+      clearPreviousResultForNewAttempt();
       await connectSocket();
       if (ws.readyState !== WebSocket.OPEN) throw new Error('WebSocket is not ready.');
+      await waitForStableReadiness();
       await countdownThenStart();
     } catch (e) {
+      cancelReadinessWait = null;
       $('startButton').disabled = false;
+      $('startButton').textContent = 'Arm capture';
       $('captureStatus').textContent = 'Camera ready';
-      message(e.message, 'error');
+      $('captureCountdownOverlay').hidden = true;
+      const userCancelled = String(e?.message || '').toLowerCase().includes('cancelled by user');
+      message(e.message, userCancelled ? '' : 'error');
     }
   });
   $('stopButton').addEventListener('click', () => submitCapture('manual'));
@@ -446,6 +641,20 @@
     if (submitting) { message('Clip processing is underway; wait for its result before retrying.', ''); return; }
     onCaptureEnded('Ready to retry'); $('predictionWord').textContent = '—'; $('predictionLabel').textContent = 'No gesture submitted'; $('confidenceValue').textContent = '—'; $('confidenceBar').style.width='0%'; if ($('candidateSection')) $('candidateSection').hidden = true; $('outcomeValue').textContent='Waiting'; $('inferenceLatencyValue').textContent='—'; $('processingLatencyValue').textContent='—'; $('endToEndLatencyValue').textContent='—'; $('poseValue').textContent='—'; $('handValue').textContent='—'; $('progressBar').style.width='0%';
   });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) return;
+    cancelCaptureCountdown();
+    if (cancelReadinessWait) window.dispatchEvent(new CustomEvent('isl-readiness-wait-cancel'));
+    if (capturing && ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type:'cancel'}));
+      message('Capture cancelled because this app tab became hidden. Keep the app visible during the gesture.', 'error');
+    } else if (!capturing && $('startButton').disabled && !submitting) {
+      $('startButton').disabled = false;
+      $('captureStatus').textContent = 'Camera ready';
+      $('captureCountdownOverlay').hidden = true;
+    }
+  });
+
   $('iotToggle').addEventListener('change', async (e) => {
     if (e.target.disabled) return;
     e.target.disabled = true;

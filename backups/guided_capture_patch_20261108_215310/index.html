@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>ISL Gesture Recognition</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20261101-multiclip-v1">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark" aria-hidden="true">ISL</div>
+    <div><p class="eyebrow">COMPUTER VISION · DEEP LEARNING · IOT</p><h1>Isolated ISL Gesture Recognition</h1><p class="subhead">One gesture per capture · INCLUDE-50 pretrained model</p></div>
+    <div id="overallStatus" class="status-pill status-warn" role="status">Checking runtime…</div>
+  </header>
+  <main>
+    <section class="runtime-strip" aria-label="Runtime state">
+      <div><span class="dot" id="modelDot"></span><strong>Model</strong><span id="modelState">Checking…</span></div>
+      <div><span class="dot" id="visionDot"></span><strong>MediaPipe</strong><span id="visionState">Checking…</span></div>
+      <div><span class="dot" id="dbDot"></span><strong>Event store</strong><span id="dbState">SQLite local</span></div>
+      <div><span class="dot" id="iotDot"></span><strong>IoT</strong><span id="iotState">Disabled</span></div>
+    </section>
+
+    <section class="panel reference-panel" aria-labelledby="referenceHeading">
+      <div class="section-heading"><div><p class="eyebrow">00 / LEARN BEFORE YOU TEST</p><h2 id="referenceHeading">INCLUDE-50 reference video gallery</h2></div><span id="referenceCount" class="small-status">Loading vocabulary…</span></div>
+      <p class="hint reference-intro">Choose the class you want to practise, watch an official dataset example, then select <strong>Use as expected sign</strong> before capturing yourself. English glosses identify classes; they are not full sign-language instructions.</p>
+      <div class="reference-controls"><label class="reference-search-label" for="referenceSearch">Find a sign</label><input id="referenceSearch" type="search" placeholder="Search e.g. hello, court, thank you" autocomplete="off"><label class="reference-search-label" for="referenceClass">Class</label><select id="referenceClass"><option value="">Select an INCLUDE-50 class…</option></select></div>
+      <div class="reference-layout">
+        <div class="reference-list-wrap"><div id="referenceList" class="reference-list"><p class="empty-cell">Loading official class labels…</p></div></div>
+        <div class="reference-player-wrap"><div class="reference-video-frame"><video id="referenceVideo" controls playsinline preload="metadata" aria-label="Selected official INCLUDE reference video"></video><div id="referenceVideoPlaceholder" class="reference-video-placeholder"><strong>Choose a class</strong><span>Available official videos will appear here when the dataset is configured.</span></div></div><div class="reference-clip-control"><label for="referenceClipSelect">Reference clip</label><select id="referenceClipSelect" disabled><option value="">No local clips available</option></select><span id="referenceClipCount" class="reference-clip-count">0 clips</span></div><div class="reference-video-meta"><strong id="referenceVideoTitle">No reference selected</strong><span id="referenceVideoDetail">Reference videos are optional local dataset assets.</span></div><div class="reference-actions"><button id="setExpectedButton" class="button button-primary" disabled>Use as expected sign</button><span id="expectedSignStatus" class="expected-status">No expected sign selected</span></div><p id="referenceHelp" class="hint">To add videos, follow docs/INCLUDE_REFERENCE_VIDEOS.md. The video dataset is not bundled with the application ZIP.</p></div>
+      </div>
+    </section>
+
+    <div class="main-grid">
+      <section class="panel capture-panel">
+        <div class="section-heading"><div><p class="eyebrow">01 / CAPTURE</p><h2>Capture one sign</h2></div><span id="captureStatus" class="small-status">Camera not started</span></div>
+        <div class="video-wrap">
+          <video id="video" autoplay muted playsinline aria-label="Live webcam preview"></video>
+          <div class="video-placeholder" id="videoPlaceholder"><span class="camera-icon" aria-hidden="true">◉</span><strong>Camera preview</strong><span>Allow camera access to begin</span></div>
+          <canvas id="landmarkCanvas" class="landmark-canvas" aria-hidden="true"></canvas>
+          <div class="video-chip" id="frameBadge">0 captured frames</div>
+        </div>
+        <div class="button-row" role="group" aria-label="Camera and capture controls">
+          <button id="startButton" class="button button-primary">Enable camera / preview</button>
+          <button id="stopButton" class="button button-dark" disabled>Stop &amp; recognise</button>
+          <button id="resetButton" class="button button-outline">Retry / reset</button>
+        </div>
+        <div class="landmark-panel" aria-label="Live landmark diagnostics">
+          <div class="landmark-panel-heading">
+            <div><strong>Live landmark guidance — latest processed frame</strong><small>Uses local Python MediaPipe. Updates are sampled (not every camera frame); the 134-D recognition pipeline reprocesses the complete recording separately.</small></div>
+            <label class="diagnostic-toggle"><input id="landmarkToggle" type="checkbox" checked><span>Overlay on</span></label>
+          </div>
+          <div id="landmarkMessage" class="landmark-message" role="status" aria-live="polite">Starts when the camera is enabled. Keep wrists and fingertips inside the full frame.</div>
+          <div class="landmark-metrics">
+            <div><span>Pose</span><strong id="livePoseStatus">Waiting</strong></div>
+            <div><span>Hands</span><strong id="liveHandsStatus">Waiting</strong></div>
+            <div><span>Landmark update rate</span><strong id="liveRateStatus">—</strong></div>
+          </div>
+        </div>
+        <div class="progress-track" aria-label="Capture duration and processing progress"><div id="progressBar"></div></div>
+        <div class="metrics-row">
+          <div><span>Captured frames</span><strong id="framesCount">0 / 169</strong></div>
+          <div><span>Capture duration</span><strong id="captureDuration">0.0 s</strong></div>
+          <div><span>Frames dropped</span><strong id="droppedCount">0</strong></div>
+        </div>
+        <p class="hint">After the 2-second get-ready countdown, perform one complete isolated sign. You have up to 6 seconds; press Stop & recognise as soon as the sign is complete. Keep shoulders, elbows, wrists, and fingertips visible. Landmark extraction runs after recording so every captured frame is processed in order. Raw webcam frames are processed in memory and are not saved.</p>
+        <label class="diagnostic-override-row"><input id="diagnosticOverride" type="checkbox"><span><strong>Diagnostic override</strong><small>Allow inference when hand coverage is below the provisional threshold, but only when at least one hand is detected and the other capture checks pass. IoT commands are suppressed for this capture.</small></span></label>
+        <div id="captureMessage" class="message" role="status" aria-live="polite">Model and camera readiness will be shown here.</div>
+      </section>
+
+      <section class="panel result-panel">
+        <div class="section-heading"><div><p class="eyebrow">02 / RECOGNITION</p><h2>Latest prediction</h2></div><span class="tag">Single inference</span></div>
+        <div class="prediction-card" id="predictionCard">
+          <div class="prediction-word" id="predictionWord">—</div>
+          <div class="prediction-label" id="predictionLabel">No gesture submitted</div>
+          <div class="confidence-area"><div class="confidence-meta"><span>Model score <span class="badge-uncal" title="Threshold is provisional and uncalibrated; do not interpret the score as a calibrated probability">UNCALIBRATED</span></span><strong id="confidenceValue">—</strong></div><div class="confidence-track"><div id="confidenceBar"></div></div><p class="hint confidence-hint" id="confidenceHint" hidden></p></div>
+          <section id="candidateSection" class="candidate-section" hidden aria-label="Ranked model candidates">
+            <div class="candidate-heading"><strong>Ranked model candidates</strong><span>Not verified translations</span></div>
+            <ol id="candidateList" class="candidate-list"></ol>
+          </section>
+          <div id="comparisonBox" class="comparison-box" hidden><div><span>Expected sign</span><strong id="expectedResultLabel">—</strong></div><div><span>Comparison</span><strong id="expectedMatchValue">Waiting for a prediction</strong></div><p id="comparisonNote">A matching class is only a practice comparison, not proof of model accuracy.</p></div>
+          <div class="result-grid">
+            <div><span>Outcome</span><strong id="outcomeValue">Waiting</strong></div>
+            <div><span>Model inference</span><strong id="inferenceLatencyValue">—</strong></div>
+            <div><span>Post-capture processing</span><strong id="processingLatencyValue">—</strong></div>
+            <div><span>Capture to result</span><strong id="endToEndLatencyValue">—</strong></div>
+            <div><span>Pose coverage</span><strong id="poseValue">—</strong></div>
+            <div><span>Hand coverage (any hand)</span><strong id="handValue">—</strong></div>
+            <div><span>Hand slot 1</span><strong id="hand1Value">—</strong></div>
+            <div><span>Hand slot 2</span><strong id="hand2Value">—</strong></div>
+            <div><span>Both hands</span><strong id="bothHandsValue">—</strong></div>
+            <div><span>Landmark extraction total</span><strong id="featureExtractionLatencyValue">—</strong></div>
+            <div><span>MediaPipe p95 / frame</span><strong id="mediapipeP95Value">—</strong></div>
+          </div>
+        </div>
+        <div class="iot-card">
+          <div class="iot-head"><div><p class="eyebrow">03 / FUTURE WORK</p><h3>IoT command gate</h3></div><label class="switch"><input id="iotToggle" type="checkbox" aria-label="Enable IoT commands" disabled><span class="slider"></span></label></div>
+          <p class="hint">This pre-IoT release is intentionally locked: no prediction can publish a device command. The future hardware phase requires a separately reviewed release after recognition and confidence-policy validation.</p>
+          <div id="iotMessage" class="iot-status" role="status" aria-live="polite">IoT is locked for pre-IoT validation.</div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel history-panel">
+      <div class="section-heading"><div><p class="eyebrow">04 / LOCAL AUDIT TRAIL</p><h2>Recognition history</h2></div><button id="refreshButton" class="button button-outline button-small">Refresh history</button></div>
+      <div class="table-scroll"><table><thead><tr><th>Time (UTC)</th><th>Prediction</th><th>Confidence</th><th>Outcome</th><th>Frames</th><th>Processing</th><th>Reason / detail</th></tr></thead><tbody id="recognitionHistory"><tr><td colspan="7" class="empty-cell">No events recorded yet.</td></tr></tbody></table></div>
+      <div class="section-heading iot-history-heading"><div><p class="eyebrow">SEPARATE COMMAND HISTORY</p><h3>IoT events</h3></div></div>
+      <div class="table-scroll"><table><thead><tr><th>Time (UTC)</th><th>Source sign</th><th>Command</th><th>Publish</th><th>Subscriber acknowledgement</th><th>Detail</th></tr></thead><tbody id="iotHistory"><tr><td colspan="6" class="empty-cell">No IoT command events.</td></tr></tbody></table></div>
+      <div class="history-actions"><span>History persists in local SQLite across page refreshes and app restarts.</span><button id="clearHistoryButton" class="button button-danger button-small">Clear local history…</button></div>
+    </section>
+    <footer><span>Local demo only · Backend must remain bound to 127.0.0.1 · Pose: modern full-pose first-25 slots · coordinate parity unverified</span><span>Threshold: <strong id="thresholdFooter">0.40</strong> <span class="badge-uncal" title="Provisional and uncalibrated threshold; select an operating point on validation data">UNCALIBRATED</span> · pre-IoT release</span></footer>
+  </main>
+  <script src="/static/landmark_diagnostics.js?v=preiot-release-2" defer></script>
+  <script src="/static/app.js?v=20261101-multiclip-v1" defer></script>
+</body>
+</html>

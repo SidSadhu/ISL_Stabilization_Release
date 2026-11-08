@@ -9,6 +9,8 @@ import json
 import math
 import time
 import uuid
+import shutil
+import tempfile
 from pathlib import Path
 from urllib.parse import unquote
 from typing import Any
@@ -18,7 +20,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .app_config import Settings, resolve_label_map
+from .app_config import PROJECT_ROOT, Settings, resolve_label_map
 from .feature_extractor import MediaPipeFeatureExtractor
 from .iot_protocol import build_command, load_label_commands
 from .labels import invert_label_map, load_label_map
@@ -108,6 +110,149 @@ def build_services(settings: Settings | None = None) -> RuntimeServices:
         services.extractor_error = "MediaPipe/OpenCV are not installed in this Python environment. Install requirements-mediapipe.txt."
     return services
 
+
+
+_DEBUG_CAPTURE_MAX_BYTES = 32 * 1024 * 1024
+
+
+def _safe_camera_settings(value: Any) -> dict[str, Any] | None:
+    """Keep only non-identifying camera telemetry supplied by the local browser."""
+    if not isinstance(value, dict):
+        return None
+    output: dict[str, Any] = {}
+    for key in ("width", "height", "frameRate", "aspectRatio", "videoElementWidth",
+                "videoElementHeight", "requestedWidth", "requestedHeight", "requestedFrameRate"):
+        item = value.get(key)
+        if isinstance(item, (int, float)) and not isinstance(item, bool) and math.isfinite(float(item)):
+            output[key] = float(item) if key in ("frameRate", "aspectRatio", "requestedFrameRate") else int(item)
+    for key in ("facingMode", "requestedAspectRatio"):
+        item = value.get(key)
+        if isinstance(item, str) and len(item) <= 32:
+            output[key] = item
+    return output or None
+
+
+def _frame_timing_summary(jpeg_frames: list[dict[str, Any]]) -> dict[str, float | int | None]:
+    timestamps = [float(item["timestamp"]) for item in jpeg_frames if isinstance(item.get("timestamp"), (int, float))]
+    if len(timestamps) < 2:
+        return {
+            "client_timestamp_fps": None,
+            "frame_interval_mean_ms": None,
+            "frame_interval_median_ms": None,
+            "frame_interval_p95_ms": None,
+            "frame_interval_count": max(0, len(timestamps) - 1),
+        }
+    intervals = np.diff(np.asarray(timestamps, dtype=np.float64)) * 1000.0
+    intervals = intervals[np.isfinite(intervals) & (intervals > 0)]
+    if not len(intervals):
+        fps = None
+        mean = median = p95 = None
+    else:
+        median = float(np.median(intervals))
+        fps = float(1000.0 / median) if median > 0 else None
+        mean = float(np.mean(intervals))
+        p95 = float(np.percentile(intervals, 95))
+    return {
+        "client_timestamp_fps": fps,
+        "frame_interval_mean_ms": mean,
+        "frame_interval_median_ms": median,
+        "frame_interval_p95_ms": p95,
+        "frame_interval_count": int(len(intervals)),
+    }
+
+
+def _persist_debug_capture(
+    capture: dict[str, Any],
+    frame_metrics: list[dict[str, Any]],
+    features: list[np.ndarray],
+    summary: dict[str, Any],
+    project_root: Path | None = None,
+) -> dict[str, Any]:
+    """Persist opt-in local capture evidence. Never called unless the user checks the box."""
+    jpeg_frames = capture.get("jpeg_frames", [])
+    total_bytes = sum(len(item.get("jpeg", b"")) for item in jpeg_frames)
+    if total_bytes > _DEBUG_CAPTURE_MAX_BYTES:
+        return {"saved": False, "error": f"Capture is {total_bytes / (1024 * 1024):.1f} MiB; the local debug-save limit is 32 MiB."}
+    try:
+        capture_id = str(uuid.UUID(str(capture.get("capture_id"))))
+    except Exception:
+        return {"saved": False, "error": "Capture identifier was invalid; debug files were not written."}
+
+    root = Path(project_root or PROJECT_ROOT) / "outputs" / "debug_captures"
+    root.mkdir(parents=True, exist_ok=True)
+    target = root / capture_id
+    temp_dir = Path(tempfile.mkdtemp(prefix=f".{capture_id}_", dir=str(root)))
+    try:
+        frames_dir = temp_dir / "frames"
+        frames_dir.mkdir()
+        manifest_frames = []
+        for index, item in enumerate(jpeg_frames, start=1):
+            filename = f"frame_{index:04d}.jpg"
+            (frames_dir / filename).write_bytes(item["jpeg"])
+            frame_record = dict(frame_metrics[index - 1]) if index - 1 < len(frame_metrics) else {"frame_index": index - 1}
+            frame_record.update({
+                "filename": f"frames/{filename}",
+                "client_timestamp_unix_seconds": float(item.get("timestamp", 0.0)),
+                "jpeg_bytes": len(item["jpeg"]),
+            })
+            manifest_frames.append(frame_record)
+        if features:
+            matrix = np.stack(features, axis=0).astype(np.float32)
+            np.savetxt(temp_dir / "raw_features_134d.csv", matrix, delimiter=",", fmt="%.8g")
+            # Store the exact interpolated/truncated/padded tensors used by inference.
+            # This is a diagnostic copy only; the classifier path itself is unchanged.
+            processed_raw, model_input = preprocess_feature_sequence(matrix, max_frame_len=169, feature_dim=134)
+            np.savetxt(temp_dir / "interpolated_sequence_134d.csv", processed_raw, delimiter=",", fmt="%.8g")
+            np.savetxt(temp_dir / "model_input_169x134.csv", model_input, delimiter=",", fmt="%.8g")
+        metadata = {
+            "schema_version": 1,
+            "capture_id": capture_id,
+            "privacy": "Explicitly opted-in local debug capture. Contains the user's webcam imagery. Do not share publicly; delete after debugging.",
+            "expected_label": capture.get("expected_label"),
+            "camera_settings": capture.get("camera_settings"),
+            "frame_timing": capture.get("frame_timing", {}),
+            "summary": summary,
+            "frame_count_received": len(jpeg_frames),
+            "feature_rows_saved": len(features),
+            "frames": manifest_frames,
+            "files": ["frames/frame_XXXX.jpg (one per received frame)"] + ([
+                "raw_features_134d.csv", "interpolated_sequence_134d.csv", "model_input_169x134.csv"
+            ] if features else []),
+        }
+        (temp_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+        if target.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return {"saved": False, "error": "A debug folder with this capture ID already exists."}
+        temp_dir.replace(target)
+        return {"saved": True, "directory": str(target.relative_to(Path(project_root or PROJECT_ROOT))), "bytes": total_bytes}
+    except Exception as exc:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        return {"saved": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _write_debug_result(result: dict[str, Any]) -> None:
+    """Write a small final prediction/result record beside an opt-in debug capture."""
+    if not result.get("debug_capture_saved") or not result.get("debug_capture_directory"):
+        return
+    try:
+        root = (Path(PROJECT_ROOT) / "outputs" / "debug_captures").resolve()
+        target = (Path(PROJECT_ROOT) / str(result["debug_capture_directory"])).resolve()
+        if root not in target.parents:
+            return
+        fields = (
+            "capture_id", "expected_label", "predicted_label", "confidence", "outcome", "reason",
+            "frame_count", "received_frames", "frames_dropped", "pose_ratio", "hand_ratio",
+            "hand1_ratio", "hand2_ratio", "both_hand_ratio", "client_timestamp_fps",
+            "frame_interval_median_ms", "frame_interval_p95_ms", "inference_latency_ms",
+        )
+        payload = {key: result.get(key) for key in fields}
+        if isinstance(result.get("top5_predictions"), list):
+            payload["top5_predictions"] = result["top5_predictions"]
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "result.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception:
+        # Debug persistence must never turn a completed recognition into a failure.
+        return
 
 def create_app(services: RuntimeServices | None = None) -> FastAPI:
     @asynccontextmanager
@@ -546,6 +691,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
             client_drops = int(current.get("client_frames_dropped", 0))
             effective_fps = received_count / (duration_ms / 1000.0) if received_count and duration_ms > 0 else None
             features: list[np.ndarray] = []
+            frame_metrics: list[dict[str, Any]] = []
             mediapipe_latencies_ms: list[float] = []
             pose_count = 0
             hand_count = 0
@@ -581,8 +727,10 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                             vec = np.asarray(extracted.features, dtype=np.float32)
                             if vec.shape != (134,) or np.isinf(vec).any():
                                 raise ValueError("Feature extractor did not return a valid 134-D frame")
+                            feature_row_index = len(features)
                             features.append(vec.copy())
-                            pose_count += int(bool(extracted.pose_found))
+                            pose_found = bool(extracted.pose_found)
+                            pose_count += int(pose_found)
                             detected_hands = int(getattr(extracted, "hand_count", 0))
                             any_hand = detected_hands > 0
                             # Backward-compatible fallbacks keep simple fake/test extractors useful.
@@ -592,8 +740,27 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                             hand1_count += int(h1_found)
                             hand2_count += int(h2_found)
                             both_hand_count += int(h1_found and h2_found)
-                        except Exception:
+                            frame_metrics.append({
+                                "frame_index": frame_index - 1,
+                                "feature_row_index": feature_row_index,
+                                "extraction_status": "ok",
+                                "pose_detected": pose_found,
+                                "hand_count": detected_hands,
+                                "hand1_detected": h1_found,
+                                "hand2_detected": h2_found,
+                            })
+                        except Exception as exc:
                             extraction_failures += 1
+                            frame_metrics.append({
+                                "frame_index": frame_index - 1,
+                                "feature_row_index": None,
+                                "extraction_status": "failed",
+                                "error": f"{type(exc).__name__}: {exc}"[:300],
+                                "pose_detected": False,
+                                "hand_count": 0,
+                                "hand1_detected": False,
+                                "hand2_detected": False,
+                            })
                         finally:
                             mediapipe_latencies_ms.append((time.perf_counter() - frame_started) * 1000.0)
                         await send({
@@ -618,6 +785,24 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
             p95_mp = float(np.percentile(mediapipe_latencies_ms, 95)) if mediapipe_latencies_ms else None
             extraction_total_ms = float(sum(mediapipe_latencies_ms)) if mediapipe_latencies_ms else None
             extraction_fps = (frame_count / (extraction_total_ms / 1000.0)) if extraction_total_ms and extraction_total_ms > 0 else None
+            frame_timing = _frame_timing_summary(jpeg_frames)
+            current["frame_timing"] = frame_timing
+            debug_save_result = None
+            if current.get("save_debug"):
+                debug_summary = {
+                    "capture_duration_ms": duration_ms,
+                    "received_frames": received_count,
+                    "extracted_feature_frames": frame_count,
+                    "extraction_failures": extraction_failures,
+                    "pose_ratio": pose_count / frame_count if frame_count else 0.0,
+                    "any_hand_ratio": hand_count / frame_count if frame_count else 0.0,
+                    "hand1_ratio": hand1_count / frame_count if frame_count else 0.0,
+                    "hand2_ratio": hand2_count / frame_count if frame_count else 0.0,
+                    "both_hand_ratio": both_hand_count / frame_count if frame_count else 0.0,
+                    "mediapipe_p95_ms": float(np.percentile(mediapipe_latencies_ms, 95)) if mediapipe_latencies_ms else None,
+                    **frame_timing,
+                }
+                debug_save_result = _persist_debug_capture(current, frame_metrics, features, debug_summary)
             if not fatal_error and not reason:
                 if frame_count < svc.settings.min_capture_frames:
                     reason = f"Too few feature frames extracted: {frame_count}; need at least {svc.settings.min_capture_frames}."
@@ -648,11 +833,22 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                 "feature_extraction_fps": extraction_fps,
                 "diagnostic_mode": bool(diagnostic_mode),
                 "diagnostic_override_used": bool(diagnostic_override_used),
+                "client_timestamp_fps": frame_timing["client_timestamp_fps"],
+                "frame_interval_mean_ms": frame_timing["frame_interval_mean_ms"],
+                "frame_interval_median_ms": frame_timing["frame_interval_median_ms"],
+                "frame_interval_p95_ms": frame_timing["frame_interval_p95_ms"],
+                "frame_interval_count": frame_timing["frame_interval_count"],
+                "camera_settings": current.get("camera_settings"),
+                "expected_label": current.get("expected_label"),
+                "debug_capture_saved": bool(debug_save_result and debug_save_result.get("saved")),
+                "debug_capture_directory": debug_save_result.get("directory") if debug_save_result else None,
+                "debug_capture_error": debug_save_result.get("error") if debug_save_result and not debug_save_result.get("saved") else None,
             }
             if fatal_error:
                 event = {**base_event, "outcome": "error", "reason": fatal_error,
                          "processing_latency_ms": (time.perf_counter() - processing_started) * 1000.0,
                          "end_to_end_latency_ms": (time.monotonic() - current["started_monotonic"]) * 1000.0}
+                _write_debug_result(event)
                 svc.store.add_recognition(event)
                 await send({"type": "result", "result": {**event, "status": "error"}, "iot": None})
                 await release_capture_lock()
@@ -662,6 +858,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                     base_event["reason"] = "No valid feature frames were extracted."
                 base_event["processing_latency_ms"] = (time.perf_counter() - processing_started) * 1000.0
                 base_event["end_to_end_latency_ms"] = (time.monotonic() - current["started_monotonic"]) * 1000.0
+                _write_debug_result(base_event)
                 svc.store.add_recognition(base_event)
                 await send({"type": "result", "result": {**base_event, "status": "invalid_capture", "pose_ratio": pose_ratio, "hand_ratio": hand_ratio}, "iot": None})
                 await release_capture_lock()
@@ -709,6 +906,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                     "confidence_threshold": svc.settings.confidence_threshold,
                     "threshold_is_calibrated": False,
                 }
+                _write_debug_result(result)
                 if diagnostic_mode:
                     iot_result = {
                         "status": "suppressed",
@@ -725,6 +923,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                     "inference_latency_ms": inference_ms,
                     "end_to_end_latency_ms": (time.monotonic() - current["started_monotonic"]) * 1000.0,
                 }
+                _write_debug_result(event)
                 svc.store.add_recognition(event)
                 await send({"type": "result", "result": {**event, "status": "error"}, "iot": None})
             finally:
@@ -772,11 +971,13 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                         continue
                     await app.state.capture_lock.acquire()
                     lock_acquired = True
+                    camera_settings = _safe_camera_settings(message.get("camera_settings"))
                     capture = {
                         "capture_id": str(uuid.uuid4()), "jpeg_frames": [], "frames_dropped": 0,
                         "extraction_failures": 0, "started_monotonic": time.monotonic(),
                         "started_epoch": time.time(), "accepting": True, "last_received_timestamp": None,
                         "frames_received": 0, "client_frames_dropped": 0,
+                        "camera_settings": camera_settings,
                     }
                     await send({
                         "type": "capture_started", "capture_id": capture["capture_id"],
@@ -848,8 +1049,19 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                     if not isinstance(diagnostic_mode, bool):
                         await send({"type": "error", "code": "invalid_diagnostic_mode", "message": "diagnostic_mode must be a boolean."})
                         continue
+                    save_debug = message.get("save_debug", False)
+                    if not isinstance(save_debug, bool):
+                        await send({"type": "error", "code": "invalid_debug_save", "message": "save_debug must be a boolean."})
+                        continue
+                    expected_label = message.get("expected_label")
+                    if expected_label is not None and (not isinstance(expected_label, str) or len(expected_label) > 64):
+                        await send({"type": "error", "code": "invalid_expected_label", "message": "expected_label must be a short string or null."})
+                        continue
                     if capture is not None:
                         capture["client_frames_dropped"] = client_drops
+                        capture["save_debug"] = save_debug
+                        capture["expected_label"] = expected_label
+                        capture["camera_settings"] = _safe_camera_settings(message.get("camera_settings")) or capture.get("camera_settings")
                         capture["stopped_monotonic"] = time.monotonic()
                     await finish_capture(diagnostic_mode=diagnostic_mode)
 

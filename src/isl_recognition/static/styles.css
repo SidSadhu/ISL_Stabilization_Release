@@ -83,3 +83,20 @@
     padding: 10px 8px;
   }
 }
+
+
+/* Guided capture: visible get-ready countdown and timed-capture option. */
+.capture-countdown-overlay{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(5,18,27,.48);color:#fff;text-align:center;pointer-events:none}.capture-countdown-overlay[hidden]{display:none!important}.capture-countdown-overlay strong{font-size:clamp(64px,11vw,112px);line-height:1;font-weight:850;text-shadow:0 3px 18px #0008}.capture-countdown-overlay span{font-size:12px;font-weight:850;letter-spacing:.18em}.timed-capture-row{display:flex;align-items:flex-start;gap:10px;margin:12px 0;padding:12px;border:1px solid #cfe2de;border-radius:10px;background:#f2f8f6;cursor:pointer}.timed-capture-row input{margin-top:3px;flex:none;accent-color:#287f73}.timed-capture-row span{display:flex;flex-direction:column;gap:4px}.timed-capture-row strong{font-size:11px;color:#245d55}.timed-capture-row small{font-size:10px;line-height:1.55;color:#657b80}
+
+
+/* Guided readiness and opt-in local debug capture additions. */
+.landmark-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+.camera-meta-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:10px 11px;border:1px solid #e2e9ec;border-radius:8px;background:#f7f9fa;font-size:10px;color:#72828a}
+.camera-meta-row strong{font-size:11px;color:#2e4b55;text-align:right;font-variant-numeric:tabular-nums}
+.debug-save-row{margin:10px 0;padding:11px;border:1px dashed #c8d5db;border-radius:9px;background:#f8fafb}
+.debug-save-row label{display:flex;gap:9px;align-items:flex-start;cursor:pointer}
+.debug-save-row input{margin-top:3px;accent-color:#287f73;flex:none}
+.debug-save-row label span{display:flex;flex-direction:column;gap:4px}
+.debug-save-row strong{font-size:11px;color:#304b56}
+.debug-save-row small{font-size:10px;line-height:1.5;color:#71828a}
+@media(max-width:560px){.landmark-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.camera-meta-row{align-items:flex-start;flex-direction:column}.camera-meta-row strong{text-align:left}}

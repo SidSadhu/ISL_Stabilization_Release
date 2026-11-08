@@ -17,7 +17,7 @@ def test_live_preview_has_no_artificial_long_delay_and_uses_cache_busted_assets(
     html = (ROOT / "src/isl_recognition/static/index.html").read_text(encoding="utf-8")
     assert "const delay = Number.isFinite(delayOverride) ? Math.max(10, delayOverride) : 10;" in js
     assert "Math.min(480, video.videoWidth)" in js
-    assert "landmark_diagnostics.js?v=preiot-release-2" in html
+    assert "/static/landmark_diagnostics.js?v=" in html
     assert "/static/app.js?v=" in html
 
 

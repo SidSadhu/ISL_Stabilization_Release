@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ISL Phase 10B — Verified browser lifecycle diagnostics</title>
+  <style>
+    :root { color-scheme: light; font-family: Segoe UI, Arial, sans-serif; }
+    body { max-width: 1120px; margin: 28px auto; padding: 0 18px; color: #202124; line-height: 1.5; }
+    h1 { margin-bottom: 4px; font-size: 25px; }
+    .muted { color: #5f6368; }
+    .panel { border: 1px solid #dadce0; border-radius: 10px; padding: 16px; margin: 16px 0; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    button { border: 0; border-radius: 6px; padding: 10px 15px; background: #1a73e8; color: white; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    input { max-width: 100%; }
+    progress { width: 100%; height: 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 7px 8px; border-bottom: 1px solid #eee; text-align: left; }
+    th { background: #f8f9fa; position: sticky; top: 0; }
+    .table-wrap { max-height: 320px; overflow: auto; border: 1px solid #eee; border-radius: 6px; }
+    .ok { color: #137333; } .bad { color: #b3261e; } .warn { color: #8a5a00; }
+    #video { display: block; width: min(100%, 640px); max-height: 360px; height: auto; background: #111; border-radius: 6px; }
+    #log { white-space: pre-wrap; font: 12px Consolas, monospace; background: #f8f9fa; padding: 10px; max-height: 280px; overflow: auto; }
+    .mode { display:inline-block; padding:4px 9px; border-radius:5px; background:#e8f0fe; color:#174ea6; font-weight:700; }
+  </style>
+</head>
+<body>
+  <h1>INCLUDE-50 verified browser lifecycle diagnostic</h1>
+  <p class="muted">Phase 10B is diagnostic-only. Synchronous JPEG encoding, 640 px Canvas, JPEG quality 0.92, ungated requestVideoFrameCallback and the initial paused frame are fixed. Every clip must satisfy its assigned lifecycle condition before upload; invalid attempts are not uploaded and must be retried. Hidden intervals are measured from the hidden transition through the visible return. A hidden/background clip must close with a visible transition after at least 1.5 seconds. No classifier, checkpoint, production app, MQTT, broker or ESP32 endpoint is used.</p>
+
+  <section class="panel">
+    <strong>Verified lifecycle condition: </strong><span class="mode" id="modeName">Loading…</span>
+    <p class="muted" id="modeDescription"></p>
+    <div id="modeInstructions" class="panel" style="background:#f8f9fa"></div>
+    <div id="focusPrompt" class="panel warn" hidden style="border:2px solid #d69b35;background:#fff8e1;font-weight:700"></div>
+    <strong>1. Load the INCLUDE video folder</strong>
+    <p class="muted">Choose C:\AIAssets\INCLUDE_videos. Only the six listed diagnostic clips are captured in this pass.</p>
+    <input id="folder" type="file" webkitdirectory directory multiple accept="video/*,.mov,.mp4,.avi,.m4v,.webm">
+    <div id="support" class="warn" style="margin-top:10px">Checking browser support…</div>
+    <div id="matchSummary" class="muted" style="margin-top:10px">Loading pinned validation manifest…</div>
+    <div class="table-wrap" style="margin-top:12px">
+      <table><thead><tr><th>#</th><th>Official clip</th><th>Label</th><th>Local match</th><th>Capture state</th></tr></thead>
+      <tbody id="matches"><tr><td colspan="5">Waiting for manifest</td></tr></tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <strong>2. Run this capture pass</strong>
+    <div class="row" style="margin:12px 0">
+      <button id="capture" disabled>Capture six clips</button>
+      <button id="retry" type="button" hidden>Retry this clip after correcting the condition</button>
+      <button id="refresh" type="button">Refresh status</button>
+      <button id="interactionMarker" type="button" hidden>Log focus recovery interaction</button>
+      <span id="conditionState" class="mode">Condition not started</span>
+      <span id="status" class="muted">Not started</span>
+    </div>
+    <progress id="progress" value="0" max="6"></progress>
+    <div id="progressText" class="muted">0 / 6 clips received</div>
+    <video id="video" muted playsinline preload="auto" aria-label="Capture preview"></video>
+  </section>
+
+  <section class="panel">
+    <strong>3. Diagnostic log</strong>
+    <div id="log">Phase 10B: condition-enforced capture with per-clip retry. First paused frame is recorded before playback. Visibility/focus intervals use wall-clock timestamps and right-censoring. IoT disabled; classifier/checkpoint not loaded.</div>
+  </section>
+
+<script>
+(() => {
+  'use strict';
+  const MODE = __PHASE10B_MODE__;
+  const RUN_ID = __PHASE10B_RUN_ID__;
+  const ENCODER = 'sync'; // Fixed reference encoder: focus/lifecycle is the only treatment.
+  const MODES = ['foreground_focused', 'visible_unfocused', 'hidden_background', 'focus_recovery'];
+  if (!MODES.includes(MODE) || typeof RUN_ID !== 'string' || !RUN_ID) {
+    throw new Error('Invalid Phase 10B run identity.');
+  }
+  const BASE_TARGETS = [
+    'Greetings/51. Good Morning/MVI_0099.MOV',
+    'Colours/55. White/MVI_5063.MOV',
+    'Adjectives/83. big large/MVI_9396.MOV',
+    'Adjectives/79. short/MVI_9302.MOV',
+    'Means_of_Transportation/11. Car/MVI_3118.MOV',
+    'Pronouns/40. I/MVI_9922.MOV'
+  ];
+  // Rotate clip order by lifecycle condition to reduce fixed clip-order bias.
+  const MODE_ROTATION = { foreground_focused: 0, visible_unfocused: 2, hidden_background: 4, focus_recovery: 1 };
+  const rotation = MODE_ROTATION[MODE];
+  const TARGET_PATHS = BASE_TARGETS.slice(rotation).concat(BASE_TARGETS.slice(0, rotation));
+  const CONFIG = Object.freeze({
+    canvas_width: 640, jpeg_quality: 0.92, timer_interval_ms: 40, // Required ISLBRW01 protocol metadata; not used to gate requestVideoFrameCallback.
+    max_capture_seconds: 6.0, max_frames: 169, diagnostic_mode: true,
+    iot_enabled: false, iot_command_emission: false, classifier_input_mirrored: false,
+    capture_sampling_mode: 'requestVideoFrameCallback', capture_timestamp_field: 'metadata.mediaTime',
+    draw_synchronous_inside_callback: true, phase: '10B',
+    phase10b_mode: MODE, phase10b_run_id: RUN_ID, phase10b_capture_encoder: ENCODER,
+    phase10b_callback_gate_ms: 0, phase10b_initial_frame_policy: 'paused_draw_encode_before_play',
+    phase10b_initial_frame_timestamp_seconds: 0, phase10b_lifecycle_instrumentation: true, phase10b_condition_enforcement_version: 2
+  });
+  const MIN_FRAMES = 12;
+  const MAX_ATTEMPTS_PER_CLIP = 5;
+  const CONDITION_THRESHOLDS_MS = Object.freeze({ visible_unfocused: 1500, hidden_background: 1500, focus_recovery: 500 });
+  const MAX_CAPTURE_SECONDS = 6.0;
+  const END_DRAIN_GRACE_MS = 250;
+  const HIDDEN_RETURN_TIMEOUT_MS = 10000;
+  const HEARTBEAT_INTERVAL_MS = 100;
+  const CALLBACK_SILENCE_MS = 250;
+  const $ = id => document.getElementById(id);
+  const state = { rows: [], files: [], matches: [], capturing: false, received: new Set() };
+  const video = $('video');
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d', { alpha: false });
+  const rvfcSupported = typeof video.requestVideoFrameCallback === 'function';
+
+  const MODE_TEXT = {
+    foreground_focused: { name: 'A — Foreground and focused', instructions: 'Keep this browser tab visible and this browser window focused throughout each clip. Do not switch tabs or applications. If focus or visibility is lost, this clip is rejected and must be retried.' },
+    visible_unfocused: { name: 'B — Visible but unfocused', instructions: 'Arrange this browser and a second application side-by-side. After the page displays ARMED, click the second application window (not another browser tab) while keeping this browser page visible and unoccluded. The focus loss starts playback automatically. Keep the second application active for at least 1.5 seconds; do not minimize or cover the browser page. The clip is accepted only when a visible/unfocused playback interval is verified.' },
+    hidden_background: { name: 'C — Hidden/background tab', instructions: 'Open a second tab before starting. After each clip begins and its initial paused frame is recorded, switch to the second tab. Stay there for at least 2 seconds from the moment the tab becomes hidden, then return to this capture tab. If the video ends while this tab is hidden, the capture page deliberately keeps recording until you return. A clip is accepted only when the hidden interval began during playback, lasted at least 1.5 seconds, and was closed by a visible transition.' },
+    focus_recovery: { name: 'D — Focus loss and recovery', instructions: 'Keep this page visible. For each clip, wait for the amber prompt, switch to a second application for at least 0.5 seconds, return to this page, then click “Log focus recovery interaction”. The click must be trusted, visible and focused. Invalid clips must be retried.' }
+  };
+  $('modeName').textContent = MODE_TEXT[MODE].name;
+  $('modeDescription').textContent = `Run ${RUN_ID}. Synchronous Canvas toDataURL encoding; no callback time gate. Initial paused frame is captured before playback. Each clip receives up to ${MAX_ATTEMPTS_PER_CLIP} attempts.`;
+  $('modeInstructions').textContent = MODE_TEXT[MODE].instructions;
+  $('capture').textContent = `Capture six clips — ${MODE}`;
+  $('retry').hidden = true;
+  $('conditionState').textContent = 'Waiting for folder and condition';
+  $('interactionMarker').hidden = true;
+  $('support').textContent = rvfcSupported
+    ? 'requestVideoFrameCallback is available. No timer-sampling fallback is used.'
+    : 'This browser does not support requestVideoFrameCallback. Use a current Chrome or Edge build.';
+  $('support').className = rvfcSupported ? 'ok' : 'bad';
+
+  function log(message, kind = '') {
+    const line = document.createElement('div');
+    if (kind) line.className = kind;
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    $('log').appendChild(line);
+    $('log').scrollTop = $('log').scrollHeight;
+  }
+  function normalizedPath(value) { return String(value || '').replaceAll('\\', '/').replace(/^\.\//, '').toLowerCase(); }
+  function withoutExtension(value) { return value.replace(/\.[^/.]+$/, ''); }
+  function filePathCandidates(file) {
+    const p = normalizedPath(file.webkitRelativePath || file.name);
+    const parts = p.split('/');
+    const candidates = [p];
+    for (let i = 1; i < parts.length; i++) candidates.push(parts.slice(i).join('/'));
+    return [...new Set(candidates)];
+  }
+  function matchFile(row, files) {
+    const expected = normalizedPath(row.video_path);
+    const stem = withoutExtension(expected);
+    const exact = files.filter(file => filePathCandidates(file).some(p => p === expected));
+    if (exact.length === 1) return { file: exact[0], match: 'exact path' };
+    if (exact.length > 1) return { file: null, match: 'ambiguous exact path' };
+    const alternate = files.filter(file => filePathCandidates(file).some(p => withoutExtension(p) === stem));
+    if (alternate.length === 1) return { file: alternate[0], match: 'same path, alternate extension' };
+    if (alternate.length > 1) return { file: null, match: 'ambiguous alternate extension' };
+    return { file: null, match: 'missing' };
+  }
+  function renderMatches() {
+    const body = $('matches'); body.replaceChildren();
+    state.matches = state.rows.map(row => ({ row, ...matchFile(row, state.files) }));
+    for (let i = 0; i < state.matches.length; i++) {
+      const m = state.matches[i]; const tr = document.createElement('tr');
+      const values = [String(i + 1), m.row.video_path, m.row.label,
+        m.file ? `${m.match}: ${m.file.name}` : m.match,
+        state.received.has(normalizedPath(m.row.video_path)) ? 'Saved' : 'Pending'];
+      for (const value of values) { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }
+      tr.className = state.received.has(normalizedPath(m.row.video_path)) ? 'ok' : (m.file ? '' : 'bad');
+      body.appendChild(tr);
+    }
+    const matched = state.matches.filter(m => m.file).length;
+    $('matchSummary').textContent = `${matched} / 6 diagnostic videos matched. ${matched === 6 ? 'All six paths matched.' : 'Missing or ambiguous paths block capture.'}`;
+    $('matchSummary').className = matched === 6 ? 'ok' : 'bad';
+    $('capture').disabled = !rvfcSupported || matched !== 6 || state.capturing || state.rows.length !== 6 || state.received.size === 6;
+  }
+  async function loadManifest() {
+    const response = await fetch('/api/manifest', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Manifest request failed (${response.status})`);
+    const payload = await response.json();
+    if (payload.expected_count !== 77 || !Array.isArray(payload.rows) || payload.rows.length !== 77) throw new Error('Receiver did not provide the pinned 77-item validation manifest.');
+    const byPath = new Map(payload.rows.map(row => [normalizedPath(row.video_path), row]));
+    state.rows = TARGET_PATHS.map(path => byPath.get(normalizedPath(path))).filter(Boolean);
+    if (state.rows.length !== 6) throw new Error('One or more Phase 10B target clips are absent from the official manifest.');
+    renderMatches(); log('Pinned 77-item official validation manifest verified; six Phase 10B clips selected.');
+  }
+  async function refreshStatus() {
+    const response = await fetch('/api/status', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Status request failed (${response.status})`);
+    const payload = await response.json();
+    state.received = new Set((payload.received || []).map(x => normalizedPath(x.video_path)).filter(p => TARGET_PATHS.some(t => normalizedPath(t) === p)));
+    $('progress').value = state.received.size; $('progressText').textContent = `${state.received.size} / 6 clips received`;
+    $('status').textContent = state.received.size === 6 ? 'Complete' : 'Receiver ready'; renderMatches();
+  }
+  function dataUrlBytes(dataUrl) {
+    const comma = dataUrl.indexOf(','); if (comma < 0) throw new Error('Invalid Canvas data URL');
+    const binary = atob(dataUrl.slice(comma + 1)); const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  function percentile(values, p) {
+    if (!values.length) return null; const sorted = [...values].sort((a,b) => a-b);
+    const i = Math.min(sorted.length - 1, Math.max(0, Math.ceil(p * sorted.length) - 1)); return sorted[i];
+  }
+  function qualitySnapshot() {
+    if (!video.getVideoPlaybackQuality) return null;
+    const q = video.getVideoPlaybackQuality();
+    return { total_video_frames: Number(q.totalVideoFrames || 0), dropped_video_frames: Number(q.droppedVideoFrames || 0), corrupted_video_frames: Number(q.corruptedVideoFrames || 0) };
+  }
+  function pageState() {
+    return { wall_time_epoch_ms: Date.now(), visibility_state: document.visibilityState, has_focus: document.hasFocus(), video_paused: video.paused, video_ended: video.ended, video_ready_state: video.readyState, playback_rate: video.playbackRate, current_time_seconds: Number(video.currentTime.toFixed(6)) };
+  }
+  function waitForEvent(target, successEvent, errorEvent, errorMessage) {
+    return new Promise((resolve, reject) => {
+      const cleanup = () => { target.removeEventListener(successEvent, onSuccess); if (errorEvent) target.removeEventListener(errorEvent, onError); };
+      const onSuccess = event => { cleanup(); resolve(event); };
+      const onError = () => { cleanup(); reject(new Error(errorMessage)); };
+      target.addEventListener(successEvent, onSuccess, { once: true });
+      if (errorEvent) target.addEventListener(errorEvent, onError, { once: true });
+    });
+  }
+
+  function epochOf(event) { return Number(event.wall_time_epoch_ms || 0); }
+  function lifecycleIntervals(timeline, endEpoch) {
+    const events = [...timeline].sort((a,b) => epochOf(a)-epochOf(b));
+    const hidden = [], unfocused = [];
+    let hiddenOpen = null, blurOpen = null;
+    for (const event of events) {
+      const at = epochOf(event); const kind = event.event_type;
+      if (kind === 'video_playing' && event.visibility_state === 'visible' && event.has_focus === false) {
+        if (!blurOpen) {
+          blurOpen = { start_epoch_ms: at, started_visible: true, start_video_time_seconds: event.video_current_time_seconds, started_during_playback: true, opened_by: 'video_playing_unfocused' };
+        } else if (blurOpen.started_during_playback !== true) {
+          // The user can switch to the second app just before the media element emits
+          // `playing`. Keep the pre-play blur for audit, but start qualifying exposure
+          // at the actual playback event so paused time is never counted.
+          const preplayStart = blurOpen.start_epoch_ms;
+          blurOpen = { ...blurOpen, preplay_blur_start_epoch_ms: preplayStart,
+            preplay_blur_duration_ms: Math.max(0, at - preplayStart),
+            start_epoch_ms: at, start_elapsed_ms: event.elapsed_ms,
+            start_video_time_seconds: event.video_current_time_seconds,
+            started_visible: true, started_during_playback: true,
+            opened_by: 'window_blur_then_video_playing' };
+        }
+      }
+      if (kind === 'document_visibilitychange') {
+        const stateAfter = event.visibility_state_after || event.visibility_state;
+        if (stateAfter === 'hidden' && !hiddenOpen) {
+          hiddenOpen = { start_epoch_ms: at, start_video_time_seconds: event.video_current_time_seconds,
+            started_during_playback: event.video_paused === false };
+        } else if (stateAfter === 'visible' && hiddenOpen) {
+          hidden.push({ ...hiddenOpen, end_epoch_ms: at, duration_ms: Math.max(0, at-hiddenOpen.start_epoch_ms), censored: false });
+          hiddenOpen = null;
+        }
+      }
+      if (kind === 'window_blur' && event.visibility_state === 'visible' && event.has_focus === false && !blurOpen) {
+        blurOpen = { start_epoch_ms: at, started_visible: true, start_video_time_seconds: event.video_current_time_seconds,
+          started_during_playback: event.video_paused === false };
+      } else if (kind === 'window_focus' && blurOpen) {
+        unfocused.push({ ...blurOpen, end_epoch_ms: at, duration_ms: Math.max(0,at-blurOpen.start_epoch_ms), censored: false,
+          ended_visible: event.visibility_state === 'visible', ended_focused: event.has_focus === true });
+        blurOpen = null;
+      }
+    }
+    if (hiddenOpen) hidden.push({ ...hiddenOpen, end_epoch_ms: endEpoch, duration_ms: Math.max(0,endEpoch-hiddenOpen.start_epoch_ms), censored: true });
+    if (blurOpen) unfocused.push({ ...blurOpen, end_epoch_ms: endEpoch, duration_ms: Math.max(0,endEpoch-blurOpen.start_epoch_ms), censored: true,
+      ended_visible: true, ended_focused: false });
+    return { hidden, unfocused };
+  }
+  function heartbeatVisibleUnfocusedIntervals(heartbeats, endEpoch, finalState, stateEvents = [], maxGapMs = 450) {
+    const samples = [...heartbeats].filter(x => Number.isFinite(Number(x.wall_time_epoch_ms)))
+      .map(x => ({...x, _observation_source:'heartbeat'}));
+    for (const event of stateEvents) {
+      if (!['window_blur','window_focus','document_visibilitychange','video_playing','video_pause','video_ended_drain_started'].includes(event.event_type) || !Number.isFinite(Number(event.wall_time_epoch_ms))) continue;
+      samples.push({ wall_time_epoch_ms:event.wall_time_epoch_ms,
+        visibility_state:event.visibility_state_after || event.visibility_state,
+        has_focus:event.has_focus, video_paused:event.video_paused,
+        video_ended:Boolean(event.video_ended || event.event_type === 'video_ended_drain_started'),
+        _observation_source:'lifecycle_event', _event_type:event.event_type });
+    }
+    samples.sort((a,b) => Number(a.wall_time_epoch_ms) - Number(b.wall_time_epoch_ms));
+    const output = [];
+    let group = [];
+    const isActive = x => x.visibility_state === 'visible' && x.has_focus === false &&
+      x.video_paused === false && !x.video_ended;
+    const emit = (items, nextSample = null, rightCensored = false) => {
+      if (items.length < 2) return;
+      const start = Number(items[0].wall_time_epoch_ms);
+      const last = Number(items[items.length - 1].wall_time_epoch_ms);
+      const gaps = items.slice(1).map((x,i) => Number(x.wall_time_epoch_ms) - Number(items[i].wall_time_epoch_ms));
+      if (gaps.some(g => g <= 0 || g > maxGapMs)) return;
+      const duration = Math.max(0, last - start);
+      if (duration <= 0) return;
+      output.push({
+        start_epoch_ms:start, end_epoch_ms:last, duration_ms:duration,
+        censored:Boolean(rightCensored),
+        end_reason:nextSample ? 'heartbeat_observed_state_change_lower_bound' :
+          (rightCensored ? 'capture_end_right_censored_heartbeat_lower_bound' : 'heartbeat_stream_gap_lower_bound'),
+        started_visible:true, started_during_playback:true,
+        ended_visible:nextSample ? nextSample.visibility_state === 'visible' : finalState?.visibility_state === 'visible',
+        ended_focused:nextSample ? nextSample.has_focus === true : finalState?.has_focus === true,
+        opened_by:'heartbeat_state_sampling',
+        heartbeat_sample_count:items.filter(x => x._observation_source === 'heartbeat').length,
+        lifecycle_event_sample_count:items.filter(x => x._observation_source === 'lifecycle_event').length,
+        heartbeat_max_gap_ms:gaps.length ? Math.max(...gaps) : 0,
+        heartbeat_observation_gap_limit_ms:maxGapMs,
+        duration_semantics:'observed_lower_bound'
+      });
+    };
+    for (const sample of samples) {
+      if (isActive(sample)) {
+        if (!group.length) { group=[sample]; continue; }
+        const gap = Number(sample.wall_time_epoch_ms) - Number(group[group.length-1].wall_time_epoch_ms);
+        if (gap <= 0 || gap > maxGapMs) { emit(group, null, true); group=[sample]; }
+        else group.push(sample);
+      } else if (group.length) {
+        emit(group, sample, false);
+        group=[];
+      }
+    }
+    if (group.length) {
+      const gapToEnd = Math.max(0, Number(endEpoch) - Number(group[group.length-1].wall_time_epoch_ms));
+      // The analyzer's end epoch is the playback-end event; pageState is sampled
+      // after the end-drain, when videoPaused/videoEnded may already have changed.
+      // Never extend the measured duration beyond the last heartbeat timestamp.
+      const finalIsActive = finalState?.visibility_state === 'visible' && finalState?.has_focus === false;
+      emit(group, null, gapToEnd <= maxGapMs && finalIsActive);
+    }
+    return output;
+  }
+
+  function assessCondition(mode, initialFrame, frameRows, timeline, marker, captureFinishEpoch, heartbeatSamples = [], finalState = null) {
+    const intervals = lifecycleIntervals(timeline, captureFinishEpoch);
+    const eventTypes = timeline.map(item => item.event_type);
+    const hiddenTransitions = timeline.filter(item => item.event_type === 'document_visibilitychange' &&
+      (item.visibility_state_after || item.visibility_state) === 'hidden');
+    const callbacks = frameRows.filter(item => item.capture_kind === 'rvfc_playback');
+    if (mode === 'foreground_focused') {
+      const allFramesFocused = frameRows.every(item => item.visibility_state === 'visible' && item.has_focus === true);
+      const ok = initialFrame.visibility_state === 'visible' && initialFrame.has_focus === true && allFramesFocused &&
+        !eventTypes.includes('window_blur') && hiddenTransitions.length === 0;
+      return { valid: ok, reason: ok ? 'foreground/focused condition verified' : 'foreground condition failed: a frame/event was not visible and focused',
+        evidence: { initial_visible: initialFrame.visibility_state === 'visible', initial_focused: initialFrame.has_focus === true,
+          all_frames_visible_focused: allFramesFocused, blur_events: eventTypes.filter(x=>x==='window_blur').length, hidden_transitions: hiddenTransitions.length } };
+    }
+    if (mode === 'visible_unfocused') {
+      const threshold = CONDITION_THRESHOLDS_MS.visible_unfocused;
+      const heartbeatIntervals = heartbeatVisibleUnfocusedIntervals(heartbeatSamples, captureFinishEpoch, finalState, timeline);
+      const candidates = [...intervals.unfocused, ...heartbeatIntervals]
+        .filter(item => item.duration_ms >= threshold && item.started_visible && item.started_during_playback);
+      const chosen = candidates.find(item => {
+        const hiddenDuringThisInterval = timeline.some(e => e.event_type === 'document_visibilitychange' &&
+          (e.visibility_state_after || e.visibility_state) === 'hidden' && epochOf(e) >= item.start_epoch_ms && epochOf(e) <= item.end_epoch_ms);
+        return !hiddenDuringThisInterval && item.ended_visible;
+      });
+      const ok = Boolean(chosen);
+      const allIntervals = [...intervals.unfocused, ...heartbeatIntervals];
+      const bestObservedMs = allIntervals.reduce((best, item) =>
+        item.started_visible && item.started_during_playback ? Math.max(best, item.duration_ms) : best, 0);
+      const heartbeatSamplesInState = heartbeatSamples.filter(x => x.visibility_state === 'visible' && x.has_focus === false && x.video_paused === false).length;
+      const reason = ok
+        ? `visible/unfocused interval verified (${Math.round(chosen.duration_ms)} ms via ${chosen.opened_by || 'focus events'}${chosen.censored ? ', right-censored lower bound' : ''})`
+        : `requires ${threshold} ms visible/unfocused during playback; best observed=${Math.round(bestObservedMs)} ms; focus-event intervals=${intervals.unfocused.length}; heartbeat intervals=${heartbeatIntervals.length}; matching heartbeat samples=${heartbeatSamplesInState}`;
+      return { valid: ok, reason,
+        evidence: { threshold_ms: threshold, best_observed_ms: bestObservedMs,
+          focus_event_intervals: intervals.unfocused, heartbeat_intervals: heartbeatIntervals,
+          matching_heartbeat_sample_count: heartbeatSamplesInState, intervals: allIntervals, qualifying_interval: chosen || null } };
+    }
+    if (mode === 'hidden_background') {
+      const threshold = CONDITION_THRESHOLDS_MS.hidden_background;
+      const chosen = intervals.hidden.find(item => !item.censored && item.duration_ms >= threshold && item.started_during_playback);
+      const ok = Boolean(chosen);
+      return { valid: ok, reason: ok ? `hidden interval verified (${Math.round(chosen.duration_ms)} ms; closed by visible return)` : `requires a closed hidden interval of at least ${threshold} ms that began during playback`,
+        evidence: { threshold_ms: threshold, require_visible_return: true, intervals: intervals.hidden, qualifying_interval: chosen || null } };
+    }
+    const threshold = CONDITION_THRESHOLDS_MS.focus_recovery;
+    const chosen = intervals.unfocused.find(item => item.duration_ms >= threshold && item.started_visible &&
+      item.started_during_playback && item.ended_visible && item.ended_focused && !item.censored);
+    const markerOk = Boolean(marker && marker.trusted === true && marker.visibility_state === 'visible' && marker.has_focus === true &&
+      Number(marker.wall_time_epoch_ms || 0) >= Number(chosen?.end_epoch_ms || Infinity));
+    const ok = Boolean(chosen && markerOk);
+    return { valid: ok, reason: ok ? `focus recovery verified (${Math.round(chosen.duration_ms)} ms) with trusted return click` : `requires blur/focus recovery of at least ${threshold} ms followed by a trusted visible/focused click`,
+      evidence: { threshold_ms: threshold, intervals: intervals.unfocused, qualifying_interval: chosen || null, trusted_marker: marker || null, marker_valid: markerOk } };
+  }
+  function waitForRetry(reason, attempt) {
+    $('retry').hidden = false;
+    $('retry').disabled = false;
+    $('retry').textContent = `Retry this clip (attempt ${attempt + 1}/${MAX_ATTEMPTS_PER_CLIP})`;
+    $('conditionState').textContent = `Condition not verified — retry required`;
+    $('status').textContent = reason;
+    log(`CONDITION REJECTED: ${reason}. Attempt ${attempt}/${MAX_ATTEMPTS_PER_CLIP} was not uploaded.`, 'warn');
+    return new Promise(resolve => $('retry').addEventListener('click', () => {
+      $('retry').hidden = true; $('conditionState').textContent = 'Retrying clip'; resolve();
+    }, { once: true }));
+  }
+  async function saveRejectedAttemptDiagnostic(payload) {
+    const diagnosticResponse = await fetch('/api/attempt-diagnostic', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    let diagnosticResult = {};
+    try { diagnosticResult = await diagnosticResponse.json(); } catch (_) {}
+    if (!diagnosticResponse.ok) throw new Error(diagnosticResult.error || `HTTP ${diagnosticResponse.status}`);
+    log(`Rejected-attempt telemetry saved for ${payload.label}, attempt ${payload.attempt_number}.`, 'ok');
+    return diagnosticResult;
+  }
+
+  async function captureOne(file, row, attemptNumber, priorFailures) {
+    window.__phase10b_last_interaction_marker = null;
+    window.__phase10b_active_marker_setter = null;
+    $('interactionMarker').disabled = false;
+    $('interactionMarker').textContent = 'Log focus recovery interaction';
+    $('interactionMarker').hidden = true;
+    $('focusPrompt').hidden = true;
+    document.title = 'ISL Phase 10B — Verified browser lifecycle diagnostics';
+    const objectUrl = URL.createObjectURL(file);
+    const listeners = [];
+    let playbackStarted = false, startPlaybackFn = null, armTimeoutId = null;
+    let armTimedOut = false, playbackStartFailure = null;
+    let hiddenIntervalStartedDuringPlayback = false, hiddenIntervalStartEpoch = null;
+    let hiddenReturnPending = false, hiddenReturnWaitStartedAt = null, hiddenReturnTimeoutId = null;
+    let finishCaptureNow = null;
+    let onVisibility = null, onFocus = null, onBlur = null, onPageHide = null, onPageShow = null, onFreeze = null, onResume = null, onFocusIn = null, onFocusOut = null;
+    video.pause(); video.muted = true; video.src = objectUrl; video.load();
+    try {
+      if (video.readyState < 1) await waitForEvent(video, 'loadedmetadata', 'error', 'Video metadata load failed');
+      if (!Number.isFinite(video.duration) || video.duration <= 0 || video.videoWidth < 1 || video.videoHeight < 1) throw new Error(`Invalid video metadata for ${file.name}`);
+      if (Math.abs(video.currentTime) > 0.0001) {
+        const seeked = waitForEvent(video, 'seeked', 'error', 'Initial seek to zero failed');
+        video.currentTime = 0; await seeked;
+      }
+      if (video.readyState < 2) await waitForEvent(video, 'loadeddata', 'error', 'Initial video frame did not load');
+      video.pause();
+      if (Math.abs(video.currentTime) > 0.0001) throw new Error(`Initial paused frame is not at zero: ${video.currentTime}`);
+      await new Promise(resolve => requestAnimationFrame(() => resolve()));
+
+      const timeline = [], heartbeats = [], frameRows = [], frameBytes = [], encodePromises = [];
+      const stats = {
+        callbackRequested: 0, callbackDelivered: 0, callbacksScheduledAtEnd: 0,
+        duplicateMediaSkips: 0, maxPendingEncodes: 0, pendingEncodes: 0, pendingDepthSum: 0,
+        drawDurations: [], callbackWorkDurations: [], syncEncodeDurations: [], asyncEncodeLatencies: [], callbackGaps: [],
+        lastDeliveredCallbackAt: null, lastDeliveredMediaTime: -Infinity, lastDeliveredPresentedFrames: null,
+        lastCapturedMediaTime: -Infinity, presentedGapTotal: 0, maxPresentedGap: 0, endedEventCount: 0,
+        initialEncodeLatencyMs: null, endGraceMs: 0
+      };
+      const qBefore = qualitySnapshot();
+      const pageStateAtInitialFrame = pageState();
+      let challengePrompted = false;
+      let challengeTimerId = null;
+      const eventStart = performance.now();
+      const captureStartEpoch = Date.now();
+      let startedAt = null, callbackId = null, watchdogId = null, heartbeatId = null, endedGraceId = null;
+      let finished = false, endedAt = null, playPromiseResolveMs = null;
+      const record = (type, extra = {}) => timeline.push({
+        event_type: type,
+        wall_time_epoch_ms: Date.now(),
+        elapsed_ms: startedAt === null ? Number((performance.now() - eventStart).toFixed(3)) : Number((performance.now() - startedAt).toFixed(3)),
+        visibility_state: document.visibilityState, has_focus: document.hasFocus(), video_current_time_seconds: Number(video.currentTime.toFixed(6)),
+        video_paused: video.paused, video_ended: video.ended, video_ready_state: video.readyState, playback_rate: video.playbackRate, ...extra
+      });
+      let focusRecoveryMarker = null;
+      window.__phase10b_active_marker_setter = marker => { focusRecoveryMarker = marker; record('controlled_recovery_interaction', marker); };
+      const videoEvents = ['playing','waiting','stalled','suspend','ended','timeupdate','seeking','seeked','pause','canplay','loadeddata'];
+      for (const name of videoEvents) {
+        const fn = () => record(`video_${name}`, { quality: qualitySnapshot() });
+        video.addEventListener(name, fn); listeners.push([video,name,fn]);
+      }
+      onVisibility = () => {
+        const stateAfter = document.visibilityState;
+        const nowEpoch = Date.now();
+        if (MODE === 'hidden_background' && stateAfter === 'hidden' && playbackStarted && !video.paused && !video.ended) {
+          hiddenIntervalStartedDuringPlayback = true;
+          hiddenIntervalStartEpoch = nowEpoch;
+        }
+        record('document_visibilitychange', { visibility_state_after: stateAfter });
+        if (MODE === 'hidden_background') {
+          if (stateAfter === 'hidden') {
+            $('conditionState').textContent = 'Hidden interval active — remain away for ≥1.5 s, then return';
+          } else {
+            const observedHiddenMs = hiddenIntervalStartEpoch === null ? null : Math.max(0, nowEpoch - hiddenIntervalStartEpoch);
+            $('conditionState').textContent = observedHiddenMs === null ? 'Visible again — no playback-hidden interval recorded' : `Visible again — hidden interval closed (${Math.round(observedHiddenMs)} ms)`;
+            if (hiddenReturnPending) {
+              hiddenReturnPending = false;
+              if (hiddenReturnTimeoutId !== null) { clearTimeout(hiddenReturnTimeoutId); hiddenReturnTimeoutId = null; }
+              record('hidden_return_wait_completed', { hidden_interval_observed_ms: observedHiddenMs, return_was_visible: true });
+              if (typeof finishCaptureNow === 'function') finishCaptureNow();
+            }
+          }
+        }
+      };
+      onFocus = () => { record('window_focus'); if (MODE === 'focus_recovery' && challengePrompted) { $('interactionMarker').hidden = false; $('conditionState').textContent = 'Returned to focus — record trusted click'; } };
+      onBlur = () => {
+        record('window_blur');
+        if (MODE === 'visible_unfocused') {
+          $('conditionState').textContent = 'Visible but unfocused — playback starts on this focus-loss event';
+          if (document.visibilityState === 'visible' && !playbackStarted && typeof startPlaybackFn === 'function') {
+            startPlaybackFn('window_blur_visible_unfocused');
+          }
+        }
+        if (MODE === 'focus_recovery') $('conditionState').textContent = 'Focus lost — return after ≥0.5 s';
+      };
+      onPageHide = event => record('pagehide', { persisted: Boolean(event.persisted) });
+      onPageShow = event => record('pageshow', { persisted: Boolean(event.persisted) });
+      onFreeze = () => record('page_freeze');
+      onResume = () => record('page_resume');
+      onFocusIn = event => record('document_focusin', { target_tag: event.target && event.target.tagName || null });
+      onFocusOut = event => record('document_focusout', { target_tag: event.target && event.target.tagName || null });
+      document.addEventListener('visibilitychange', onVisibility);
+      window.addEventListener('focus', onFocus);
+      window.addEventListener('blur', onBlur);
+      window.addEventListener('pagehide', onPageHide);
+      window.addEventListener('pageshow', onPageShow);
+      document.addEventListener('freeze', onFreeze);
+      document.addEventListener('resume', onResume);
+      document.addEventListener('focusin', onFocusIn);
+      document.addEventListener('focusout', onFocusOut);
+
+      canvas.width = CONFIG.canvas_width;
+      canvas.height = Math.round(CONFIG.canvas_width * video.videoHeight / video.videoWidth);
+      const initialDrawStart = performance.now();
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const initialDrawMs = performance.now() - initialDrawStart;
+      stats.drawDurations.push(initialDrawMs);
+      const initialRow = {
+        video_time_seconds: 0, presented_media_time_seconds: 0, capture_current_time_seconds: 0,
+        presented_frames: null, expected_display_time_ms: null, callback_time_ms: null,
+        processing_duration_ms: null, elapsed_ms: 0, width: canvas.width, height: canvas.height,
+        callback_work_ms: 0, draw_duration_ms: Number(initialDrawMs.toFixed(3)), encode_latency_ms: null,
+        jpeg_bytes: 0, callback_lateness_ms: null, visibility_state: document.visibilityState,
+        has_focus: document.hasFocus(), video_ready_state: video.readyState, video_paused: true,
+        playback_rate: video.playbackRate, capture_kind: 'initial_paused', initial_frame_current_time_seconds: 0, wall_time_epoch_ms: Date.now(),
+        pending_encodes_at_enqueue: 0
+      };
+      frameRows.push(initialRow); frameBytes.push(null);
+      const initialEncodeStart = performance.now();
+      const initialBytes = await encodeCanvasFrame(initialRow, 0, frameBytes, encodePromises, stats);
+      frameBytes[0] = initialBytes;
+      initialRow.encode_latency_ms = Number((performance.now() - initialEncodeStart).toFixed(3));
+      stats.initialEncodeLatencyMs = initialRow.encode_latency_ms;
+      stats.lastCapturedMediaTime = 0;
+      record('initial_paused_frame_captured', { timestamp_seconds: 0, frame_index: 0, encoder: ENCODER, draw_ms: Number(initialDrawMs.toFixed(3)), encode_ms: initialRow.encode_latency_ms, ready_state: video.readyState, phase10b_mode: MODE, page_state: pageStateAtInitialFrame });
+      log(`Initial paused frame recorded for ${row.label} at currentTime=0 before playback.`, 'ok');
+
+      const qAtPlay = qualitySnapshot();
+      $('conditionState').textContent = `Active condition: ${MODE}`;
+      let currentSilence = null;
+      const CALLBACK_SILENCE_MS = 250;
+      let lastHeartbeatTime = null;
+      let uiUnfocusedStartEpoch = null;
+      let uiUnfocusedLastEpoch = null;
+      heartbeatId = setInterval(() => {
+        const now = performance.now(); const sample = { elapsed_ms: Number((now - startedAt).toFixed(3)), ...pageState(), quality: qualitySnapshot() };
+        heartbeats.push(sample);
+        if (MODE === 'visible_unfocused') {
+          // Some Windows/browser focus transitions update document.hasFocus() before
+          // (or without delivering) a window blur event. Poll the same browser state
+          // as a fallback trigger; playback still starts only while the page is
+          // visible and has actually lost focus. Qualification remains heartbeat-
+          // based and still requires >=1.5 s of observed visible/unfocused playback.
+          if (sample.visibility_state === 'visible' && sample.has_focus === false &&
+              !playbackStarted && typeof startPlaybackFn === 'function') {
+            startPlaybackFn('heartbeat_detected_visible_unfocused');
+          }
+          const wall = Number(sample.wall_time_epoch_ms);
+          if (sample.visibility_state === 'visible' && sample.has_focus === false && sample.video_paused === false) {
+            if (uiUnfocusedStartEpoch === null || uiUnfocusedLastEpoch === null || wall - uiUnfocusedLastEpoch > 450) uiUnfocusedStartEpoch = wall;
+            uiUnfocusedLastEpoch = wall;
+            const observed = Math.max(0, wall - uiUnfocusedStartEpoch);
+            $('conditionState').textContent = `Visible/unfocused evidence: ${(observed/1000).toFixed(1)} / 1.5 s — keep this tab visible`;
+          } else {
+            uiUnfocusedStartEpoch = null;
+            uiUnfocusedLastEpoch = null;
+            $('conditionState').textContent = sample.visibility_state === 'hidden' ? 'Invalid for this pass: tab hidden' : 'Waiting for visible/unfocused playback interval';
+          }
+        }
+        if (lastHeartbeatTime !== null && !video.paused && !video.ended && video.currentTime > lastHeartbeatTime + 0.001 && stats.lastDeliveredCallbackAt !== null && now - stats.lastDeliveredCallbackAt > CALLBACK_SILENCE_MS) {
+          record('rvfc_silence_detected', { silence_ms: Number((now - stats.lastDeliveredCallbackAt).toFixed(3)) });
+        }
+        lastHeartbeatTime = video.currentTime;
+      }, HEARTBEAT_INTERVAL_MS);
+
+      const captureElapsedMs = await new Promise((resolve, reject) => {
+        const cleanup = () => {
+          if (callbackId !== null && typeof video.cancelVideoFrameCallback === 'function') { try { video.cancelVideoFrameCallback(callbackId); } catch (_) {} }
+          if (watchdogId !== null) clearTimeout(watchdogId);
+          if (heartbeatId !== null) clearInterval(heartbeatId);
+          if (endedGraceId !== null) clearTimeout(endedGraceId);
+          if (hiddenReturnTimeoutId !== null) clearTimeout(hiddenReturnTimeoutId);
+          hiddenReturnTimeoutId = null;
+          if (armTimeoutId !== null) clearTimeout(armTimeoutId);
+          video.removeEventListener('ended', onEnded);
+          for (const [target,name,fn] of listeners) target.removeEventListener(name,fn);
+          document.removeEventListener('visibilitychange', onVisibility);
+          window.removeEventListener('focus', onFocus);
+          window.removeEventListener('blur', onBlur);
+          window.removeEventListener('pagehide', onPageHide);
+          window.removeEventListener('pageshow', onPageShow);
+          document.removeEventListener('freeze', onFreeze);
+          document.removeEventListener('resume', onResume);
+          document.removeEventListener('focusin', onFocusIn);
+          document.removeEventListener('focusout', onFocusOut);
+          if (challengeTimerId !== null) clearTimeout(challengeTimerId);
+        };
+        const finish = () => {
+          if (finished) return; finished = true;
+          stats.callbacksScheduledAtEnd = Math.max(0, stats.callbackRequested - stats.callbackDelivered);
+          stats.endGraceMs = endedAt === null ? 0 : Number(Math.min(END_DRAIN_GRACE_MS, Math.max(0, performance.now() - endedAt)).toFixed(3));
+          record('capture_finished', { callbacks_scheduled_not_delivered: stats.callbacksScheduledAtEnd, quality: qualitySnapshot(), end_grace_ms: stats.endGraceMs, hidden_return_wait_ms: hiddenReturnWaitStartedAt === null ? 0 : Number((performance.now() - hiddenReturnWaitStartedAt).toFixed(3)) });
+          finishCaptureNow = null;
+          cleanup(); resolve(performance.now() - startedAt);
+        };
+        finishCaptureNow = finish;
+        const fail = error => { if (finished) return; finished = true; cleanup(); reject(error); };
+        const onEnded = () => {
+          stats.endedEventCount++; endedAt = performance.now(); record('video_ended_drain_started', { grace_ms: END_DRAIN_GRACE_MS });
+          endedGraceId = setTimeout(() => {
+            if (MODE === 'hidden_background' && hiddenIntervalStartedDuringPlayback && document.visibilityState === 'hidden') {
+              hiddenReturnPending = true;
+              hiddenReturnWaitStartedAt = performance.now();
+              record('hidden_return_wait_started', { minimum_hidden_interval_ms: CONDITION_THRESHOLDS_MS.hidden_background, max_wait_ms: HIDDEN_RETURN_TIMEOUT_MS, hidden_start_epoch_ms: hiddenIntervalStartEpoch });
+              $('conditionState').textContent = 'Video ended — stay in the second tab until ≥1.5 s hidden, then return here';
+              hiddenReturnTimeoutId = setTimeout(() => {
+                if (!hiddenReturnPending) return;
+                hiddenReturnPending = false;
+                record('hidden_return_wait_timeout', { max_wait_ms: HIDDEN_RETURN_TIMEOUT_MS });
+                finish();
+              }, HIDDEN_RETURN_TIMEOUT_MS);
+            } else {
+              finish();
+            }
+          }, END_DRAIN_GRACE_MS);
+        };
+        const scheduleNext = () => {
+          if (!finished && !video.ended) {
+            stats.callbackRequested++;
+            const requestedAt = performance.now();
+            timeline.push({ event_type: 'rvfc_requested', elapsed_ms: Number((requestedAt - startedAt).toFixed(3)), requested_index: stats.callbackRequested, visibility_state: document.visibilityState, has_focus: document.hasFocus() });
+            callbackId = video.requestVideoFrameCallback((now, metadata) => onFrame(now, metadata, requestedAt));
+          }
+        };
+        const onFrame = (callbackNow, metadata, requestedAt) => {
+          if (finished) return;
+          stats.callbackDelivered++;
+          if (stats.lastDeliveredCallbackAt !== null) stats.callbackGaps.push(callbackNow - stats.lastDeliveredCallbackAt);
+          stats.lastDeliveredCallbackAt = callbackNow;
+          if (stats.lastDeliveredPresentedFrames !== null) {
+            const gap = Math.max(0, Math.trunc(Number(metadata.presentedFrames) - stats.lastDeliveredPresentedFrames - 1));
+            stats.presentedGapTotal += gap; stats.maxPresentedGap = Math.max(stats.maxPresentedGap, gap);
+          }
+          stats.lastDeliveredPresentedFrames = Number(metadata.presentedFrames);
+          record('rvfc_delivered', { callback_index: stats.callbackDelivered, callback_lateness_ms: Number((callbackNow - requestedAt).toFixed(3)), metadata_presented_frames: Number(metadata.presentedFrames), metadata_media_time: Number(metadata.mediaTime) });
+          const mediaTime = Number(metadata.mediaTime);
+          if (!Number.isFinite(mediaTime) || mediaTime < 0 || !Number.isFinite(Number(metadata.presentedFrames)) || Number(metadata.presentedFrames) < 1) { fail(new Error('Invalid requestVideoFrameCallback metadata.')); return; }
+          if (mediaTime <= stats.lastCapturedMediaTime + 0.000001) {
+            stats.duplicateMediaSkips++;
+            record('duplicate_rvfc_frame_skipped', { callback_index: stats.callbackDelivered, media_time: mediaTime, already_captured_through: stats.lastCapturedMediaTime });
+            scheduleNext(); return;
+          }
+          const elapsed = callbackNow - startedAt;
+          if (elapsed >= MAX_CAPTURE_SECONDS * 1000 || frameRows.length >= CONFIG.max_frames) { scheduleNext(); return; }
+          canvas.width = CONFIG.canvas_width;
+          canvas.height = Math.round(CONFIG.canvas_width * video.videoHeight / video.videoWidth);
+          const callbackStart = performance.now();
+          const drawStart = performance.now(); context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const drawMs = performance.now() - drawStart; stats.drawDurations.push(drawMs);
+          const frameIndex = frameRows.length;
+          const rowMeta = {
+            video_time_seconds: Number(mediaTime.toFixed(6)), presented_media_time_seconds: Number(mediaTime.toFixed(6)),
+            capture_current_time_seconds: Number(video.currentTime.toFixed(6)), presented_frames: Math.trunc(Number(metadata.presentedFrames)),
+            expected_display_time_ms: Number.isFinite(Number(metadata.expectedDisplayTime)) ? Number(metadata.expectedDisplayTime) : null,
+            callback_time_ms: Number(callbackNow.toFixed(3)), processing_duration_ms: Number.isFinite(Number(metadata.processingDuration)) ? Number((Number(metadata.processingDuration)*1000).toFixed(3)) : null,
+            elapsed_ms: Number(elapsed.toFixed(3)), wall_time_epoch_ms: Date.now(), width: canvas.width, height: canvas.height,
+            callback_work_ms: null, draw_duration_ms: Number(drawMs.toFixed(3)), encode_latency_ms: null, jpeg_bytes: 0,
+            callback_lateness_ms: Number((callbackNow-requestedAt).toFixed(3)), visibility_state: document.visibilityState,
+            has_focus: document.hasFocus(), video_ready_state: video.readyState, video_paused: video.paused,
+            playback_rate: video.playbackRate, capture_kind: 'rvfc_playback', pending_encodes_at_enqueue: 0
+          };
+          frameRows.push(rowMeta); frameBytes.push(null);
+          const encodeStarted = performance.now();
+          const task = encodeCanvasFrame(rowMeta, frameIndex, frameBytes, encodePromises, stats);
+          task.then(bytes => {
+            frameBytes[frameIndex] = bytes;
+            rowMeta.encode_latency_ms = Number((performance.now()-encodeStarted).toFixed(3));
+          }).catch(fail);
+          stats.lastCapturedMediaTime = mediaTime;
+          rowMeta.callback_work_ms = Number((performance.now()-callbackStart).toFixed(3)); stats.callbackWorkDurations.push(rowMeta.callback_work_ms);
+          scheduleNext();
+          if (frameRows.length >= CONFIG.max_frames) finish();
+        };
+        video.addEventListener('ended', onEnded, { once: true });
+        startedAt = performance.now();
+        const startPlayback = trigger => {
+          if (playbackStarted || finished) return;
+          if (MODE === 'visible_unfocused' && (document.visibilityState !== 'visible' || document.hasFocus())) return;
+          playbackStarted = true;
+          if (armTimeoutId !== null) { clearTimeout(armTimeoutId); armTimeoutId = null; }
+          record('playback_start_triggered', { trigger, q_at_play: qAtPlay, phase10b_mode: MODE });
+          record('play_invoked', { q_at_play: qAtPlay, phase10b_mode: MODE, trigger });
+          const watchdogBudgetMs = MAX_CAPTURE_SECONDS * 1000 + (MODE === 'hidden_background' ? HIDDEN_RETURN_TIMEOUT_MS + END_DRAIN_GRACE_MS + 1000 : 1000);
+          watchdogId = setTimeout(() => { record('capture_watchdog_fired', { hidden_return_pending: hiddenReturnPending }); finish(); }, watchdogBudgetMs);
+          scheduleNext();
+          const playCallAt = performance.now();
+          video.play().then(() => {
+            playPromiseResolveMs = performance.now()-playCallAt;
+            record('play_promise_resolved', { play_promise_resolve_ms: Number(playPromiseResolveMs.toFixed(3)), trigger });
+          }).catch(error => {
+            playbackStartFailure = `${error.name || 'Error'}: ${error.message || error}`;
+            armTimedOut = true;
+            record('playback_start_failed', { trigger, error_name: error.name || null, error_message: error.message || String(error) });
+            finish();
+          });
+        };
+        startPlaybackFn = startPlayback;
+        if (MODE === 'focus_recovery') {
+          challengeTimerId = setTimeout(() => {
+            challengePrompted = true;
+            $('focusPrompt').hidden = false;
+            $('focusPrompt').textContent = `FOCUS RECOVERY TEST — ${row.label}: switch to your second application for about 1 second, then return here and click “Log focus recovery interaction”.`;
+            document.title = `FOCUS TEST — ${row.label}`;
+            record('focus_recovery_prompt_shown', { target_delay_ms: 500 });
+          }, 500);
+        }
+        if (MODE === 'visible_unfocused') {
+          record('visible_unfocused_armed', { arm_timeout_ms: 10000, playback_trigger: 'visible_window_blur' });
+          $('conditionState').textContent = 'ARMED — click your second app now. This visible tab stays running; playback starts automatically when focus leaves.';
+          armTimeoutId = setTimeout(() => {
+            if (!playbackStarted) {
+              armTimedOut = true;
+              record('visible_unfocused_arm_timeout', { arm_timeout_ms: 10000, visibility_state: document.visibilityState, has_focus: document.hasFocus() });
+              finish();
+            }
+          }, 10000);
+          // The user may already have switched to the side-by-side app for the next
+          // clip. Start immediately in that case; never require a second blur event.
+          if (document.visibilityState === 'visible' && !document.hasFocus()) {
+            startPlayback('already_visible_unfocused_when_armed');
+          }
+        } else {
+          startPlayback('capture_button');
+        }
+      });
+
+      await Promise.all(encodePromises);
+      if (armTimedOut) {
+        const finalState = pageState();
+        const reason = playbackStartFailure
+          ? `Muted diagnostic video playback could not start after the visible-unfocused trigger: ${playbackStartFailure}`
+          : 'Visible/unfocused pass was armed but the browser did not report a visible window-blur trigger within 10 seconds. Keep the capture page visible and click the side-by-side second application.';
+        const evidence = { trigger_observed: playbackStarted, playback_start_failure: playbackStartFailure,
+          arm_timeout_ms: 10000, initial_page_state: pageStateAtInitialFrame, final_page_state: finalState,
+          heartbeat_count: heartbeats.length, timeline_event_types: timeline.map(x => x.event_type) };
+        const attemptDiagnostic = { mode:MODE, run_id:RUN_ID, video_path:row.video_path, label:row.label,
+          attempt_number:attemptNumber, rejected_at_utc:new Date().toISOString(), reason, evidence,
+          frame_count:frameRows.length, rvfc_delivered_count:stats.callbackDelivered,
+          capture_duration_ms:Number((performance.now()-eventStart).toFixed(2)),
+          initial_page_state:pageStateAtInitialFrame, final_page_state:finalState,
+          timeline_events:timeline, heartbeat_samples:heartbeats };
+        try { await saveRejectedAttemptDiagnostic(attemptDiagnostic); }
+        catch (diagnosticError) { log(`Could not persist arm-timeout telemetry: ${diagnosticError.message}`, 'bad'); }
+        return { accepted:false, reason, evidence };
+      }
+      if (frameRows.length < MIN_FRAMES) throw new Error(`Only ${frameRows.length} frames captured; at least ${MIN_FRAMES} required.`);
+      if (frameRows.some((x,i) => !(frameBytes[i] instanceof Uint8Array))) throw new Error('One or more JPEG encodes did not complete.');
+      const pendingEncodesAfterFlush = stats.pendingEncodes;
+      const captureFinishState = pageState();
+      // Compute finish/exposure timestamps before constructing caseHeader. The
+      // header serializes captureFinishEpoch, so declaring it afterwards creates
+      // a temporal-dead-zone ReferenceError in browsers and aborts every clip.
+      const captureFinishEpoch = Number(captureFinishState.wall_time_epoch_ms || Date.now());
+      const playbackEndEvent = [...timeline].reverse().find(e => e.event_type === 'video_ended_drain_started');
+      const exposureEndEpoch = MODE === 'hidden_background' ? captureFinishEpoch : (playbackEndEvent ? Number(playbackEndEvent.wall_time_epoch_ms) : captureFinishEpoch);
+      const qEnd = qualitySnapshot();
+      const capturedTimes = frameRows.map(x => Number(x.video_time_seconds));
+      const callbackGaps = capturedTimes.slice(1).map((x,i) => (x-capturedTimes[i])*1000);
+      const encLatencies = frameRows.map(x => x.encode_latency_ms).filter(x => Number.isFinite(x));
+      const caseHeader = {
+        video_path: row.video_path, label: row.label, source_name: file.name,
+        source_relative_path: file.webkitRelativePath || file.name, source_width: video.videoWidth, source_height: video.videoHeight,
+        source_duration_seconds: video.duration, source_fps_reported: null, browser_user_agent: navigator.userAgent,
+        browser_platform: navigator.platform || '', captured_at_utc: new Date().toISOString(),
+        capture_sampling_mode: 'requestVideoFrameCallback', capture_timestamp_field: 'metadata.mediaTime_after_initial_paused_frame',
+        draw_synchronous_inside_callback: true, capture_duration_ms: Number(captureElapsedMs.toFixed(2)),
+        frame_count: frameRows.length, timer_ticks: frameRows.length, // Legacy protocol compatibility count; no interval timer is used in Phase 10B.
+        duplicate_frame_skips: stats.duplicateMediaSkips, media_time_repeat_count: stats.duplicateMediaSkips,
+        browser_total_video_frames: qEnd ? Math.max(0,qEnd.total_video_frames-(qBefore?.total_video_frames||0)) : 0,
+        browser_dropped_video_frames: qEnd ? Math.max(0,qEnd.dropped_video_frames-(qBefore?.dropped_video_frames||0)) : 0,
+        phase10b_mode: MODE, phase10b_run_id: RUN_ID, phase10b_capture_encoder: ENCODER,
+        phase10b_initial_frame_policy: 'paused_draw_encode_before_play', phase10b_initial_frame_captured: true,
+        phase10b_initial_frame_timestamp_seconds: 0, phase10b_initial_frame_encode_latency_ms: stats.initialEncodeLatencyMs,
+        phase10b_ended_event_count: stats.endedEventCount, phase10b_end_drain_grace_ms: stats.endGraceMs,
+        callback_requested_count: stats.callbackRequested, callback_delivered_count: stats.callbackDelivered,
+        callbacks_scheduled_not_delivered: stats.callbacksScheduledAtEnd, duplicate_media_callback_skips: stats.duplicateMediaSkips,
+        max_pending_encodes: stats.maxPendingEncodes, pending_encodes_after_flush: pendingEncodesAfterFlush, mean_pending_encodes_at_enqueue: Number((stats.pendingDepthSum/Math.max(1,frameRows.length-1)).toFixed(3)),
+        draw_duration_mean_ms: Number((stats.drawDurations.reduce((a,b)=>a+b,0)/Math.max(1,stats.drawDurations.length)).toFixed(3)),
+        callback_work_mean_ms: Number((stats.callbackWorkDurations.reduce((a,b)=>a+b,0)/Math.max(1,stats.callbackWorkDurations.length)).toFixed(3)),
+        encode_latency_mean_ms: encLatencies.length ? Number((encLatencies.reduce((a,b)=>a+b,0)/encLatencies.length).toFixed(3)) : null,
+        encode_latency_p95_ms: percentile(encLatencies,0.95), encode_latency_max_ms: encLatencies.length ? Math.max(...encLatencies) : null,
+        presented_frame_gap_total: stats.presentedGapTotal, presented_frame_gap_max: stats.maxPresentedGap,
+        callback_gap_median_ms: percentile(callbackGaps,0.5), callback_gap_p95_ms: percentile(callbackGaps,0.95), callback_gap_max_ms: callbackGaps.length ? Math.max(...callbackGaps) : null,
+        play_promise_resolve_ms: playPromiseResolveMs, quality_before: qBefore, quality_at_play: qAtPlay, quality_at_end: qEnd,
+        video_current_time_at_end: Number(video.currentTime.toFixed(6)), video_ended_at_finish: video.ended,
+        video_paused_at_finish: video.paused, page_visibility_at_finish: document.visibilityState,
+        page_has_focus_at_finish: document.hasFocus(), phase10b_mode: MODE, phase10b_run_id: RUN_ID,
+        page_was_discarded: Boolean(document.wasDiscarded), focus_recovery_marker: focusRecoveryMarker, capture_start_wall_time_epoch_ms: captureStartEpoch, capture_finish_wall_time_epoch_ms: captureFinishEpoch,
+        phase10b_final_page_state: captureFinishState,
+        phase10b_hidden_return_wait_ms: hiddenReturnWaitStartedAt === null ? 0 : Number((performance.now() - hiddenReturnWaitStartedAt).toFixed(3)),
+        phase10b_hidden_interval_started_during_playback: hiddenIntervalStartedDuringPlayback,
+        phase10b_attempt_number: attemptNumber, phase10b_prior_attempt_failures: priorFailures, phase10b_condition_validation: null,
+        event_count: timeline.length, heartbeat_count: heartbeats.length,
+        timeline_events: timeline, heartbeat_samples: heartbeats, frames: frameRows
+      };
+      const conditionValidation = assessCondition(MODE, initialRow, frameRows, timeline, focusRecoveryMarker,
+        exposureEndEpoch, heartbeats, captureFinishState);
+      caseHeader.phase10b_condition_validation = conditionValidation;
+      if (!conditionValidation.valid) {
+        log(`Condition not verified for ${row.label}: ${conditionValidation.reason}`, 'warn');
+        const attemptDiagnostic = {
+          mode: MODE, run_id: RUN_ID, video_path: row.video_path, label: row.label,
+          attempt_number: attemptNumber, rejected_at_utc: new Date().toISOString(),
+          reason: conditionValidation.reason, evidence: conditionValidation.evidence,
+          frame_count: frameRows.length, rvfc_delivered_count: stats.callbackDelivered,
+          capture_duration_ms: Number(captureElapsedMs.toFixed(2)),
+          initial_page_state: pageStateAtInitialFrame, final_page_state: captureFinishState,
+          timeline_events: timeline, heartbeat_samples: heartbeats
+        };
+        try {
+          await saveRejectedAttemptDiagnostic(attemptDiagnostic);
+        } catch (diagnosticError) {
+          log(`Could not persist rejected-attempt telemetry: ${diagnosticError.message}`, 'bad');
+        }
+        return { accepted: false, reason: conditionValidation.reason, evidence: conditionValidation.evidence };
+      }
+      $('conditionState').textContent = `Condition verified: ${conditionValidation.reason}`;
+      record('condition_validation_passed', { attempt_number: attemptNumber, evidence: conditionValidation.evidence });
+      caseHeader.timeline_events = timeline;
+      const header = { schema_version: 1, capture_config: { ...CONFIG }, case: caseHeader };
+      const headerBytes = new TextEncoder().encode(JSON.stringify(header));
+      const prefix = new Uint8Array(12); prefix.set(new TextEncoder().encode('ISLBRW01'),0); new DataView(prefix.buffer).setUint32(8,headerBytes.length,false);
+      const payload = new Blob([prefix,headerBytes,...frameBytes],{type:'application/octet-stream'});
+      const response = await fetch('/api/capture',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:payload});
+      const result = await response.json(); if (!response.ok) throw new Error(result.error || `Receiver returned HTTP ${response.status}`);
+      const firstKind = frameRows[0]?.capture_kind;
+      log(`Saved ${row.label}: frames=${frameRows.length}; initial=${firstKind}@0.000s; rVFC=${stats.callbackDelivered}; source duration=${video.duration.toFixed(2)}s; final mediaTime=${frameRows[frameRows.length-1].video_time_seconds.toFixed(2)}s; encoder=${ENCODER}; maxQueue=${stats.maxPendingEncodes}.`, 'ok');
+      return { accepted: true, result, conditionValidation };
+    } finally {
+      video.pause(); video.removeAttribute('src'); video.load(); URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  async function encodeCanvasFrame(rowMeta, frameIndex, frameBytes, encodePromises, stats) {
+    if (ENCODER === 'sync') {
+      const started = performance.now();
+      const dataUrl = canvas.toDataURL('image/jpeg', CONFIG.jpeg_quality);
+      const bytes = dataUrlBytes(dataUrl);
+      const latency = performance.now() - started;
+      rowMeta.encode_latency_ms = Number(latency.toFixed(3)); rowMeta.jpeg_bytes = bytes.length;
+      stats.syncEncodeDurations.push(latency);
+      return bytes;
+    }
+    stats.pendingEncodes++;
+    stats.maxPendingEncodes = Math.max(stats.maxPendingEncodes, stats.pendingEncodes);
+    stats.pendingDepthSum += stats.pendingEncodes;
+    rowMeta.pending_encodes_at_enqueue = stats.pendingEncodes;
+    const enqueueAt = performance.now();
+    const task = new Promise((resolve, reject) => {
+      canvas.toBlob(async blob => {
+        try {
+          if (!blob) throw new Error('Canvas.toBlob returned null.');
+          const bytes = new Uint8Array(await blob.arrayBuffer());
+          const latency = performance.now() - enqueueAt;
+          rowMeta.encode_latency_ms = Number(latency.toFixed(3)); rowMeta.jpeg_bytes = bytes.length;
+          stats.asyncEncodeLatencies.push(latency); resolve(bytes);
+        } catch (error) { reject(error); }
+        finally { stats.pendingEncodes = Math.max(0, stats.pendingEncodes - 1); }
+      }, 'image/jpeg', CONFIG.jpeg_quality);
+    });
+    encodePromises.push(task);
+    return task;
+  }
+
+  $('folder').addEventListener('change', event => { state.files = [...(event.target.files || [])]; renderMatches(); });
+  $('refresh').addEventListener('click', async () => { try { await refreshStatus(); } catch (error) { log(error.message,'bad'); } });
+  $('interactionMarker').addEventListener('click', event => {
+    const marker = { event_type: 'controlled_recovery_interaction', trusted: Boolean(event.isTrusted), visibility_state: document.visibilityState, has_focus: document.hasFocus(), wall_time_epoch_ms: Date.now(), wall_time_utc: new Date().toISOString() };
+    if (typeof window.__phase10b_active_marker_setter === 'function') window.__phase10b_active_marker_setter(marker);
+    window.__phase10b_last_interaction_marker = marker;
+    log(`Recovery interaction marker recorded (trusted=${marker.trusted}; visible=${marker.visibility_state}; focused=${marker.has_focus}).`, 'ok');
+    $('focusPrompt').hidden = true;
+    $('interactionMarker').textContent = 'Recovery interaction recorded';
+    $('interactionMarker').disabled = true;
+    window.__phase10b_last_interaction_marker = marker;
+  });
+  $('capture').addEventListener('click', async () => {
+    if (state.capturing || state.matches.some(m => !m.file)) return;
+    state.capturing = true; $('capture').disabled = true; $('status').textContent = 'Capturing…';
+    try {
+      for (let index=0; index<state.matches.length; index++) {
+        const item=state.matches[index]; const key=normalizedPath(item.row.video_path); if (state.received.has(key)) continue;
+        $('status').textContent=`Capturing ${index+1} / 6`; log(`Capturing ${index+1}/6: ${item.row.video_path}`);
+        const priorFailures = []; let accepted = false; let acceptedResult = null;
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_CLIP; attempt++) {
+          $('status').textContent = `Clip ${index+1}/6 — attempt ${attempt}/${MAX_ATTEMPTS_PER_CLIP}`;
+          $('retry').hidden = true;
+          const attemptResult = await captureOne(item.file, item.row, attempt, priorFailures);
+          if (attemptResult.accepted) { accepted = true; acceptedResult = attemptResult.result; break; }
+          priorFailures.push({ attempt, reason: attemptResult.reason, evidence: attemptResult.evidence });
+          if (attempt < MAX_ATTEMPTS_PER_CLIP) await waitForRetry(attemptResult.reason, attempt);
+        }
+        if (!accepted) throw new Error(`Condition could not be verified after ${MAX_ATTEMPTS_PER_CLIP} attempts for ${item.row.video_path}. Pass stopped; invalid attempts were not uploaded.`);
+        state.received.add(key); $('progress').value=state.received.size;
+        $('progressText').textContent=`${state.received.size} / 6 clips received`; log(`Receiver saved ${acceptedResult.frame_count} accepted frames; SHA256 ${acceptedResult.sha256}`,'ok'); renderMatches();
+      }
+      $('status').textContent=state.received.size===6?'Complete':'Partially complete';
+      if(state.received.size===6) log(`All six ${MODE} captures saved. Return to PowerShell for the next repeat/encoder pass.`,'ok');
+    } catch(error) {
+      $('status').textContent='Capture stopped';
+      log(error.stack||error.message,'bad');
+      try {
+        await fetch('/api/abort', { method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ mode:MODE, run_id:RUN_ID, reason:String(error.message || error) }) });
+      } catch (abortError) { log(`Could not notify receiver of aborted pass: ${abortError.message}`, 'warn'); }
+    }
+    finally { state.capturing=false; renderMatches(); }
+  });
+  (async()=>{try{await loadManifest();await refreshStatus();}catch(error){$('matchSummary').textContent=error.message;$('matchSummary').className='bad';log(error.stack||error.message,'bad');}})();
+})();
+</script>
+</body>
+</html>

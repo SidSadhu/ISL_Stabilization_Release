@@ -1,0 +1,21 @@
+{
+  "date": "2026-09-30",
+  "experiment": "Current official INCLUDE-50 no-CNN Transformer-small real probe inference",
+  "checkpoint": "include50_no_cnn_transformer_small.pth",
+  "probe": "Places/23. Court/MVI_3612.MOV",
+  "ground_truth": "court",
+  "prediction": "court",
+  "predicted_index": 8,
+  "confidence": 0.8873,
+  "top5": [
+    ["court", 0.8873],
+    ["happy", 0.0636],
+    ["biglarge", 0.0052],
+    ["shoes", 0.0051],
+    ["tshirt", 0.0049]
+  ],
+  "input_shape": [1, 169, 134],
+  "output_shape": [1, 50],
+  "interpretation": "Single-sample probe inference; not overall dataset accuracy.",
+  "historical_comparison_note": "The earlier 76.10% probe result belongs to the unavailable historical include50_transformer_small.pth checkpoint and is not a result for this checkpoint."
+}

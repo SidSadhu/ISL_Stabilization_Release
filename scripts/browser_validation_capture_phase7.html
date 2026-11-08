@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ISL Phase 7 — Capture completeness</title>
+  <style>
+    :root { color-scheme: light; font-family: Segoe UI, Arial, sans-serif; }
+    body { max-width: 1120px; margin: 28px auto; padding: 0 18px; color: #202124; line-height: 1.5; }
+    h1 { margin-bottom: 4px; font-size: 25px; }
+    .muted { color: #5f6368; }
+    .panel { border: 1px solid #dadce0; border-radius: 10px; padding: 16px; margin: 16px 0; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    button { border: 0; border-radius: 6px; padding: 10px 15px; background: #1a73e8; color: white; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    input { max-width: 100%; }
+    progress { width: 100%; height: 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 7px 8px; border-bottom: 1px solid #eee; text-align: left; }
+    th { background: #f8f9fa; position: sticky; top: 0; }
+    .table-wrap { max-height: 320px; overflow: auto; border: 1px solid #eee; border-radius: 6px; }
+    .ok { color: #137333; } .bad { color: #b3261e; } .warn { color: #8a5a00; }
+    #video { display: block; width: min(100%, 640px); max-height: 360px; height: auto; background: #111; border-radius: 6px; }
+    #log { white-space: pre-wrap; font: 12px Consolas, monospace; background: #f8f9fa; padding: 10px; max-height: 240px; overflow: auto; }
+    .mode { display:inline-block; padding:4px 9px; border-radius:5px; background:#e8f0fe; color:#174ea6; font-weight:700; }
+  </style>
+</head>
+<body>
+  <h1>INCLUDE-50 capture completeness diagnostic</h1>
+  <p class="muted">Phase 7 only. Six diagnostic clips, two separate passes. Both modes use requestVideoFrameCallback, 640 px Canvas width, JPEG quality 0.92 and the same source videos. No classifier, checkpoint, app, MQTT, broker or ESP32 endpoint is used.</p>
+
+  <section class="panel">
+    <strong>Capture mode: </strong><span class="mode" id="modeName">Loading…</span>
+    <p class="muted" id="modeDescription"></p>
+    <strong>1. Load the INCLUDE video folder</strong>
+    <p class="muted">Choose C:\AIAssets\INCLUDE_videos. Only the six listed diagnostic videos are captured in this pass.</p>
+    <input id="folder" type="file" webkitdirectory directory multiple accept="video/*,.mov,.mp4,.avi,.m4v,.webm">
+    <div id="support" class="warn" style="margin-top:10px">Checking browser support…</div>
+    <div id="matchSummary" class="muted" style="margin-top:10px">Loading pinned validation manifest…</div>
+    <div class="table-wrap" style="margin-top:12px">
+      <table><thead><tr><th>#</th><th>Official clip</th><th>Label</th><th>Local match</th><th>Capture state</th></tr></thead>
+      <tbody id="matches"><tr><td colspan="5">Waiting for manifest</td></tr></tbody></table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <strong>2. Run this capture pass</strong>
+    <div class="row" style="margin:12px 0">
+      <button id="capture" disabled>Capture six clips — current mode</button>
+      <button id="refresh" type="button">Refresh status</button>
+      <span id="status" class="muted">Not started</span>
+    </div>
+    <progress id="progress" value="0" max="6"></progress>
+    <div id="progressText" class="muted">0 / 6 clips received</div>
+    <video id="video" muted playsinline preload="auto" aria-label="Capture preview"></video>
+  </section>
+
+  <section class="panel">
+    <strong>3. Diagnostic log</strong>
+    <div id="log">Phase 7: IoT disabled. No classifier/checkpoint loading. The two modes are stored separately.</div>
+  </section>
+
+<script>
+(() => {
+  'use strict';
+  const MODE = __PHASE7_MODE__;
+  const TARGET_PATHS = [
+    'Greetings/51. Good Morning/MVI_0099.MOV',
+    'Colours/55. White/MVI_5063.MOV',
+    'Adjectives/83. big large/MVI_9396.MOV',
+    'Adjectives/79. short/MVI_9302.MOV',
+    'Means_of_Transportation/11. Car/MVI_3118.MOV',
+    'Pronouns/40. I/MVI_9922.MOV'
+  ];
+  const CONFIG = Object.freeze({
+    canvas_width: 640,
+    jpeg_quality: 0.92,
+    timer_interval_ms: 40,
+    max_capture_seconds: 6.0,
+    max_frames: 169,
+    diagnostic_mode: true,
+    iot_enabled: false,
+    iot_command_emission: false,
+    classifier_input_mirrored: false,
+    capture_sampling_mode: 'requestVideoFrameCallback',
+    capture_timestamp_field: 'metadata.mediaTime',
+    draw_synchronous_inside_callback: true,
+    phase7_mode: MODE,
+    phase7_every_presented_frame: MODE === 'every_presented_frame',
+    phase7_encoding: MODE === 'current_40ms' ? 'synchronous_toDataURL' : 'asynchronous_toBlob'
+  });
+  const MIN_FRAMES = 12;
+  const MIN_INTERVAL_MS = 39;
+  const MAX_CAPTURE_SECONDS = 6.0;
+  const $ = id => document.getElementById(id);
+  const state = { rows: [], files: [], matches: [], capturing: false, received: new Set() };
+  const video = $('video');
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d', { alpha: false });
+  const rvfcSupported = typeof video.requestVideoFrameCallback === 'function';
+
+  if (MODE === 'current_40ms') {
+    $('modeName').textContent = 'Mode A — current 40 ms policy';
+    $('modeDescription').textContent = 'Reference pass: requestVideoFrameCallback + 39 ms minimum interval + synchronous Canvas toDataURL JPEG encoding. This reproduces the policy used in the Phase 6 capture run.';
+    $('capture').textContent = 'Capture six clips — current 40 ms policy';
+  } else if (MODE === 'every_presented_frame') {
+    $('modeName').textContent = 'Mode B — every presented-frame callback';
+    $('modeDescription').textContent = 'Diagnostic pass: no minimum interval gate. Draw each callback frame synchronously, then encode via asynchronous Canvas toBlob. Pending encodes are measured; callbacks are not paused while encoding completes.';
+    $('capture').textContent = 'Capture six clips — every presented frame';
+  } else {
+    throw new Error(`Unsupported Phase 7 mode: ${MODE}`);
+  }
+  $('support').textContent = rvfcSupported
+    ? 'requestVideoFrameCallback is available. This probe does not fall back to timer sampling.'
+    : 'This browser does not support requestVideoFrameCallback. Use a current Chrome or Edge build.';
+  $('support').className = rvfcSupported ? 'ok' : 'bad';
+
+  function log(message, kind = '') {
+    const line = document.createElement('div');
+    if (kind) line.className = kind;
+    line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    $('log').appendChild(line);
+    $('log').scrollTop = $('log').scrollHeight;
+  }
+  function normalizedPath(value) { return String(value || '').replaceAll('\\', '/').replace(/^\.\//, '').toLowerCase(); }
+  function withoutExtension(value) { return value.replace(/\.[^/.]+$/, ''); }
+  function filePathCandidates(file) {
+    const p = normalizedPath(file.webkitRelativePath || file.name);
+    const parts = p.split('/');
+    const candidates = [p];
+    for (let i = 1; i < parts.length; i++) candidates.push(parts.slice(i).join('/'));
+    return [...new Set(candidates)];
+  }
+  function matchFile(row, files) {
+    const expected = normalizedPath(row.video_path);
+    const stem = withoutExtension(expected);
+    const exact = files.filter(file => filePathCandidates(file).some(p => p === expected));
+    if (exact.length === 1) return { file: exact[0], match: 'exact path' };
+    if (exact.length > 1) return { file: null, match: 'ambiguous exact path' };
+    const alternate = files.filter(file => filePathCandidates(file).some(p => withoutExtension(p) === stem));
+    if (alternate.length === 1) return { file: alternate[0], match: 'same path, alternate extension' };
+    if (alternate.length > 1) return { file: null, match: 'ambiguous alternate extension' };
+    return { file: null, match: 'missing' };
+  }
+  function renderMatches() {
+    const body = $('matches'); body.replaceChildren();
+    state.matches = state.rows.map(row => ({ row, ...matchFile(row, state.files) }));
+    for (let i = 0; i < state.matches.length; i++) {
+      const m = state.matches[i]; const tr = document.createElement('tr');
+      const values = [String(i + 1), m.row.video_path, m.row.label,
+        m.file ? `${m.match}: ${m.file.name}` : m.match,
+        state.received.has(normalizedPath(m.row.video_path)) ? 'Saved' : 'Pending'];
+      for (const value of values) { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); }
+      tr.className = state.received.has(normalizedPath(m.row.video_path)) ? 'ok' : (m.file ? '' : 'bad');
+      body.appendChild(tr);
+    }
+    const matched = state.matches.filter(m => m.file).length;
+    $('matchSummary').textContent = `${matched} / 6 diagnostic videos matched. ${matched === 6 ? 'All six paths matched.' : 'Missing or ambiguous paths block capture.'}`;
+    $('matchSummary').className = matched === 6 ? 'ok' : 'bad';
+    $('capture').disabled = !rvfcSupported || matched !== 6 || state.capturing || state.rows.length !== 6 || state.received.size === 6;
+  }
+  async function loadManifest() {
+    const response = await fetch('/api/manifest', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Manifest request failed (${response.status})`);
+    const payload = await response.json();
+    if (payload.expected_count !== 77 || !Array.isArray(payload.rows) || payload.rows.length !== 77) throw new Error('Receiver did not provide the pinned 77-item validation manifest.');
+    const byPath = new Map(payload.rows.map(row => [normalizedPath(row.video_path), row]));
+    state.rows = TARGET_PATHS.map(path => byPath.get(normalizedPath(path))).filter(Boolean);
+    if (state.rows.length !== 6) throw new Error('One or more Phase 7 target clips are absent from the official manifest.');
+    renderMatches(); log('Pinned 77-item official validation manifest verified; six diagnostic clips selected.');
+  }
+  async function refreshStatus() {
+    const response = await fetch('/api/status', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Status request failed (${response.status})`);
+    const payload = await response.json();
+    state.received = new Set((payload.received || []).map(x => normalizedPath(x.video_path)).filter(p => TARGET_PATHS.some(t => normalizedPath(t) === p)));
+    $('progress').value = state.received.size; $('progressText').textContent = `${state.received.size} / 6 clips received`;
+    $('status').textContent = state.received.size === 6 ? 'Complete' : 'Receiver ready'; renderMatches();
+  }
+  function waitForEvent(target, eventName, errorName = 'error') {
+    return new Promise((resolve, reject) => {
+      const onDone = () => { cleanup(); resolve(); };
+      const onError = () => { cleanup(); reject(new Error(`Video ${errorName} event`)); };
+      const cleanup = () => { target.removeEventListener(eventName, onDone); target.removeEventListener(errorName, onError); };
+      target.addEventListener(eventName, onDone, { once: true }); target.addEventListener(errorName, onError, { once: true });
+    });
+  }
+  function dataUrlBytes(dataUrl) {
+    const comma = dataUrl.indexOf(','); if (comma < 0) throw new Error('Invalid Canvas data URL');
+    const binary = atob(dataUrl.slice(comma + 1)); const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  function percentile(values, p) {
+    if (!values.length) return null; const sorted = [...values].sort((a,b) => a-b);
+    const i = Math.min(sorted.length - 1, Math.max(0, Math.ceil(p * sorted.length) - 1)); return sorted[i];
+  }
+  async function captureOne(file, row) {
+    const objectUrl = URL.createObjectURL(file);
+    video.src = objectUrl; video.load();
+    try {
+      if (video.readyState < 1) await waitForEvent(video, 'loadedmetadata');
+      if (!Number.isFinite(video.duration) || video.duration <= 0 || video.videoWidth < 1 || video.videoHeight < 1) throw new Error(`Invalid video metadata for ${file.name}`);
+      video.currentTime = 0;
+      if (video.readyState < 2) await waitForEvent(video, 'loadeddata');
+      const beforeQuality = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality() : null;
+      const startedAt = performance.now();
+      const frameRows = [];
+      const frameBytes = [];
+      const encodePromises = [];
+      const stats = {
+        callbackCount: 0, duplicateMediaSkips: 0, rateLimitedSkips: 0,
+        maxPendingEncodes: 0, pendingEncodes: 0, pendingDepthSum: 0,
+        drawDurations: [], callbackWorkDurations: [], syncEncodeDurations: [], asyncEncodeLatencies: [],
+        callbackGaps: [], lastCallbackAt: null, lastMediaTime: -Infinity, lastPresentedFrames: null,
+        lastAcceptedCallbackAt: -Infinity, maxPresentedGap: 0, presentedGapTotal: 0
+      };
+      await video.play();
+      const captureElapsedMs = await new Promise((resolve, reject) => {
+        let ended = false; let callbackId = null; let watchdogId = null;
+        const cleanup = () => {
+          if (callbackId !== null && typeof video.cancelVideoFrameCallback === 'function') { try { video.cancelVideoFrameCallback(callbackId); } catch (_) {} }
+          if (watchdogId !== null) clearTimeout(watchdogId);
+          video.removeEventListener('ended', onEnded);
+        };
+        const finish = () => { if (ended) return; ended = true; cleanup(); resolve(performance.now() - startedAt); };
+        const fail = error => { if (ended) return; ended = true; cleanup(); reject(error); };
+        const onEnded = () => finish();
+        const scheduleNext = () => { if (!ended) callbackId = video.requestVideoFrameCallback(onFrame); };
+        const onFrame = (callbackNow, metadata) => {
+          if (ended) return;
+          const callbackStart = performance.now(); stats.callbackCount++;
+          const elapsed = callbackNow - startedAt;
+          if (elapsed >= MAX_CAPTURE_SECONDS * 1000 || frameRows.length >= 169 || video.ended) { finish(); return; }
+          const mediaTime = Number(metadata.mediaTime); const presentedFrames = Number(metadata.presentedFrames);
+          if (!Number.isFinite(mediaTime) || mediaTime < 0 || !Number.isFinite(presentedFrames) || presentedFrames < 1) { fail(new Error('Invalid requestVideoFrameCallback metadata.')); return; }
+          if (mediaTime <= stats.lastMediaTime || (stats.lastPresentedFrames !== null && presentedFrames <= stats.lastPresentedFrames)) {
+            stats.duplicateMediaSkips++; scheduleNext(); return;
+          }
+          if (MODE === 'current_40ms' && callbackNow - stats.lastAcceptedCallbackAt < MIN_INTERVAL_MS) {
+            stats.rateLimitedSkips++; scheduleNext(); return;
+          }
+          if (stats.lastCallbackAt !== null) stats.callbackGaps.push(callbackNow - stats.lastCallbackAt);
+          stats.lastCallbackAt = callbackNow;
+          if (stats.lastPresentedFrames !== null) {
+            const gap = Math.max(0, Math.trunc(presentedFrames - stats.lastPresentedFrames - 1));
+            stats.presentedGapTotal += gap; stats.maxPresentedGap = Math.max(stats.maxPresentedGap, gap);
+          }
+          const frameIndex = frameRows.length;
+          canvas.width = CONFIG.canvas_width; canvas.height = Math.round(CONFIG.canvas_width * video.videoHeight / video.videoWidth);
+          const drawStarted = performance.now();
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const drawDuration = performance.now() - drawStarted; stats.drawDurations.push(drawDuration);
+          const rowMeta = {
+            video_time_seconds: Number(mediaTime.toFixed(6)), presented_media_time_seconds: Number(mediaTime.toFixed(6)),
+            capture_current_time_seconds: Number(Number(video.currentTime).toFixed(6)),
+            presented_frames: Math.trunc(presentedFrames),
+            expected_display_time_ms: Number.isFinite(Number(metadata.expectedDisplayTime)) ? Number(metadata.expectedDisplayTime) : null,
+            callback_time_ms: Number(callbackNow.toFixed(3)), processing_duration_ms: Number.isFinite(Number(metadata.processingDuration)) ? Number((Number(metadata.processingDuration) * 1000).toFixed(3)) : null,
+            elapsed_ms: Number(elapsed.toFixed(3)), width: canvas.width, height: canvas.height,
+            callback_work_ms: null, draw_duration_ms: Number(drawDuration.toFixed(3)),
+            pending_encodes_at_enqueue: MODE === 'every_presented_frame' ? stats.pendingEncodes + 1 : 0,
+            encode_latency_ms: null, jpeg_bytes: 0
+          };
+          frameRows.push(rowMeta); frameBytes.push(null);
+          if (MODE === 'current_40ms') {
+            const encodeStarted = performance.now();
+            const dataUrl = canvas.toDataURL('image/jpeg', CONFIG.jpeg_quality);
+            const bytes = dataUrlBytes(dataUrl);
+            const encodeDuration = performance.now() - encodeStarted;
+            rowMeta.encode_latency_ms = Number(encodeDuration.toFixed(3));
+            rowMeta.jpeg_bytes = bytes.length; frameBytes[frameIndex] = bytes;
+            stats.syncEncodeDurations.push(encodeDuration); stats.pendingDepthSum += 0;
+          } else {
+            stats.pendingEncodes++; stats.maxPendingEncodes = Math.max(stats.maxPendingEncodes, stats.pendingEncodes);
+            stats.pendingDepthSum += stats.pendingEncodes;
+            const enqueueAt = performance.now();
+            const task = new Promise((resolveTask, rejectTask) => {
+              canvas.toBlob(async blob => {
+                try {
+                  if (!blob) throw new Error('Canvas.toBlob returned null.');
+                  const buffer = await blob.arrayBuffer(); const bytes = new Uint8Array(buffer);
+                  const latency = performance.now() - enqueueAt;
+                  rowMeta.encode_latency_ms = Number(latency.toFixed(3)); rowMeta.jpeg_bytes = bytes.length;
+                  frameBytes[frameIndex] = bytes; stats.asyncEncodeLatencies.push(latency);
+                  resolveTask();
+                } catch (error) { rejectTask(error); }
+                finally { stats.pendingEncodes = Math.max(0, stats.pendingEncodes - 1); }
+              }, 'image/jpeg', CONFIG.jpeg_quality);
+            });
+            encodePromises.push(task);
+          }
+          stats.lastMediaTime = mediaTime; stats.lastPresentedFrames = presentedFrames; stats.lastAcceptedCallbackAt = callbackNow;
+          scheduleNext();
+          rowMeta.callback_work_ms = Number((performance.now() - callbackStart).toFixed(3));
+          stats.callbackWorkDurations.push(Number(rowMeta.callback_work_ms));
+          if (frameRows.length >= 169) finish();
+        };
+        video.addEventListener('ended', onEnded, { once: true });
+        watchdogId = setTimeout(() => finish(), MAX_CAPTURE_SECONDS * 1000 + 1000);
+        callbackId = video.requestVideoFrameCallback(onFrame);
+      });
+      await Promise.all(encodePromises);
+      if (frameRows.length < MIN_FRAMES) throw new Error(`Only ${frameRows.length} frames captured; at least ${MIN_FRAMES} required.`);
+      if (frameBytes.some(x => !(x instanceof Uint8Array))) throw new Error('One or more asynchronous JPEG encodes did not complete.');
+      const afterQuality = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality() : null;
+      const callbackGaps = [];
+      for (let i = 1; i < frameRows.length; i++) callbackGaps.push(frameRows[i].callback_time_ms - frameRows[i-1].callback_time_ms);
+      const allLatencies = MODE === 'current_40ms' ? stats.syncEncodeDurations : stats.asyncEncodeLatencies;
+      const caseHeader = {
+        video_path: row.video_path, label: row.label, source_name: file.name,
+        source_relative_path: file.webkitRelativePath || file.name,
+        source_width: video.videoWidth, source_height: video.videoHeight,
+        source_duration_seconds: video.duration, source_fps_reported: null,
+        browser_user_agent: navigator.userAgent, browser_platform: navigator.platform || '',
+        capture_sampling_mode: 'requestVideoFrameCallback', capture_timestamp_field: 'metadata.mediaTime',
+        draw_synchronous_inside_callback: true, capture_duration_ms: Number(captureElapsedMs.toFixed(2)),
+        frame_count: frameRows.length, timer_ticks: stats.callbackCount,
+        duplicate_frame_skips: stats.duplicateMediaSkips + stats.rateLimitedSkips,
+        media_time_repeat_count: stats.duplicateMediaSkips,
+        browser_total_video_frames: afterQuality ? Math.max(0, afterQuality.totalVideoFrames - (beforeQuality?.totalVideoFrames || 0)) : 0,
+        browser_dropped_video_frames: afterQuality ? Math.max(0, afterQuality.droppedVideoFrames - (beforeQuality?.droppedVideoFrames || 0)) : 0,
+        phase7_mode: MODE,
+        phase7_encoder: MODE === 'current_40ms' ? 'synchronous_toDataURL' : 'asynchronous_toBlob',
+        phase7_rate_limit_ms: MODE === 'current_40ms' ? MIN_INTERVAL_MS : 0,
+        rate_limited_callback_skips: stats.rateLimitedSkips,
+        duplicate_media_callback_skips: stats.duplicateMediaSkips,
+        max_pending_encodes: stats.maxPendingEncodes,
+        mean_pending_encodes_at_enqueue: MODE === 'every_presented_frame' ? Number((stats.pendingDepthSum / frameRows.length).toFixed(3)) : 0,
+        draw_duration_mean_ms: Number((stats.drawDurations.reduce((a,b)=>a+b,0) / stats.drawDurations.length).toFixed(3)),
+        callback_work_mean_ms: Number((stats.callbackWorkDurations.reduce((a,b)=>a+b,0) / stats.callbackWorkDurations.length).toFixed(3)),
+        encode_latency_mean_ms: allLatencies.length ? Number((allLatencies.reduce((a,b)=>a+b,0) / allLatencies.length).toFixed(3)) : null,
+        encode_latency_p95_ms: percentile(allLatencies, 0.95),
+        presented_frame_gap_total: stats.presentedGapTotal,
+        presented_frame_gap_max: stats.maxPresentedGap,
+        callback_gap_median_ms: percentile(callbackGaps, 0.5),
+        callback_gap_p95_ms: percentile(callbackGaps, 0.95),
+        frames: frameRows
+      };
+      const header = { schema_version: 1, capture_config: CONFIG, case: caseHeader };
+      const headerBytes = new TextEncoder().encode(JSON.stringify(header));
+      const prefix = new Uint8Array(12); prefix.set(new TextEncoder().encode('ISLBRW01'), 0);
+      new DataView(prefix.buffer).setUint32(8, headerBytes.length, false);
+      const payload = new Blob([prefix, headerBytes, ...frameBytes], { type: 'application/octet-stream' });
+      const response = await fetch('/api/capture', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: payload });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || `Receiver returned HTTP ${response.status}`);
+      log(`Saved ${row.label}: ${frameRows.length} frames; callbacks=${stats.callbackCount}; skipped=${caseHeader.duplicate_frame_skips}; max async queue=${stats.maxPendingEncodes}.`, 'ok');
+      return result;
+    } finally {
+      video.pause(); video.removeAttribute('src'); video.load(); URL.revokeObjectURL(objectUrl);
+    }
+  }
+  $('folder').addEventListener('change', event => { state.files = [...(event.target.files || [])]; renderMatches(); });
+  $('refresh').addEventListener('click', async () => { try { await refreshStatus(); } catch (error) { log(error.message, 'bad'); } });
+  $('capture').addEventListener('click', async () => {
+    if (state.capturing || state.matches.some(m => !m.file)) return;
+    state.capturing = true; $('capture').disabled = true; $('status').textContent = 'Capturing…';
+    try {
+      for (let index = 0; index < state.matches.length; index++) {
+        const item = state.matches[index]; const key = normalizedPath(item.row.video_path);
+        if (state.received.has(key)) continue;
+        $('status').textContent = `Capturing ${index + 1} / 6`;
+        log(`Capturing ${index + 1}/6: ${item.row.video_path}`);
+        const result = await captureOne(item.file, item.row);
+        state.received.add(key); $('progress').value = state.received.size;
+        $('progressText').textContent = `${state.received.size} / 6 clips received`;
+        log(`Receiver saved ${result.frame_count} frames; SHA256 ${result.sha256}`, 'ok'); renderMatches();
+      }
+      $('status').textContent = state.received.size === 6 ? 'Complete' : 'Partially complete';
+      if (state.received.size === 6) log(`All six ${MODE} captures saved. Return to PowerShell; the next pass will start automatically.`, 'ok');
+    } catch (error) { $('status').textContent = 'Capture stopped'; log(error.stack || error.message, 'bad'); }
+    finally { state.capturing = false; renderMatches(); }
+  });
+  (async () => { try { await loadManifest(); await refreshStatus(); } catch (error) { $('matchSummary').textContent = error.message; $('matchSummary').className = 'bad'; log(error.stack || error.message, 'bad'); } })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1533 @@
+{
+  "test_type": "local-reference-gallery-smoke-benchmark-not-official-test-accuracy",
+  "video_root": "C:\\AIAssets\\INCLUDE_videos",
+  "resize_width": "native",
+  "model_device": "cpu",
+  "model_load_ms": 4652.246199999354,
+  "clips_discovered": 29,
+  "clips_selected": 29,
+  "clips_evaluated": 29,
+  "clips_failed": 0,
+  "classes_evaluated": 29,
+  "top1_accuracy": 0.7586206896551724,
+  "top5_accuracy": 0.9655172413793104,
+  "mean_top1_confidence": 0.4574802009196117,
+  "median_top1_confidence": 0.37439215183258057,
+  "mean_confidence_when_top1_correct": 0.5158177092671394,
+  "mean_confidence_when_top1_incorrect": 0.274133746113096,
+  "mean_extraction_wall_seconds_per_clip": 5.651675641379214,
+  "mean_inference_ms_per_clip": 8.186099999875296,
+  "threshold_sweep_exploratory_only": [
+    {
+      "threshold": 0.1,
+      "accepted_count": 29,
+      "accepted_rate": 1.0,
+      "top1_accuracy_among_accepted": 0.7586206896551724,
+      "accepted_correct_count": 22
+    },
+    {
+      "threshold": 0.2,
+      "accepted_count": 29,
+      "accepted_rate": 1.0,
+      "top1_accuracy_among_accepted": 0.7586206896551724,
+      "accepted_correct_count": 22
+    },
+    {
+      "threshold": 0.3,
+      "accepted_count": 21,
+      "accepted_rate": 0.7241379310344828,
+      "top1_accuracy_among_accepted": 0.9047619047619048,
+      "accepted_correct_count": 19
+    },
+    {
+      "threshold": 0.4,
+      "accepted_count": 13,
+      "accepted_rate": 0.4482758620689655,
+      "top1_accuracy_among_accepted": 1.0,
+      "accepted_correct_count": 13
+    },
+    {
+      "threshold": 0.5,
+      "accepted_count": 10,
+      "accepted_rate": 0.3448275862068966,
+      "top1_accuracy_among_accepted": 1.0,
+      "accepted_correct_count": 10
+    },
+    {
+      "threshold": 0.6,
+      "accepted_count": 7,
+      "accepted_rate": 0.2413793103448276,
+      "top1_accuracy_among_accepted": 1.0,
+      "accepted_correct_count": 7
+    },
+    {
+      "threshold": 0.7,
+      "accepted_count": 5,
+      "accepted_rate": 0.1724137931034483,
+      "top1_accuracy_among_accepted": 1.0,
+      "accepted_correct_count": 5
+    }
+  ],
+  "unmapped_video_count": 0,
+  "unmapped_video_examples": [],
+  "failed": [],
+  "clips": [
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Places\\35. Bank\\MVI_3336.MOV",
+      "class": "bank",
+      "source_fps": 25.0,
+      "declared_source_frames": 63,
+      "frames_processed": 63,
+      "clip_duration_seconds": 2.52,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.7936507936507936,
+      "hand_slot_1_coverage": 0.7777777777777778,
+      "hand_slot_2_coverage": 0.6825396825396826,
+      "both_hands_coverage": 0.6666666666666666,
+      "extractor_latency_median_ms": 67.63019999925746,
+      "extractor_latency_p95_ms": 102.8855399999884,
+      "feature_extraction_wall_ms": 6418.077000000267,
+      "inference_ms": 11.201900000742171,
+      "top1_label": "bank",
+      "top1_confidence": 0.5963332056999207,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "bank",
+          "confidence": 0.5963332056999207
+        },
+        {
+          "rank": 2,
+          "label": "monday",
+          "confidence": 0.0981486588716507
+        },
+        {
+          "rank": 3,
+          "label": "shoes",
+          "confidence": 0.09465425461530685
+        },
+        {
+          "rank": 4,
+          "label": "time",
+          "confidence": 0.04539351165294647
+        },
+        {
+          "rank": 5,
+          "label": "teacher",
+          "confidence": 0.033479880541563034
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Animals\\4. Bird\\MVI_2987.MOV",
+      "class": "bird",
+      "source_fps": 25.0,
+      "declared_source_frames": 76,
+      "frames_processed": 76,
+      "clip_duration_seconds": 3.04,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.7763157894736842,
+      "hand_slot_1_coverage": 0.3815789473684211,
+      "hand_slot_2_coverage": 0.6973684210526315,
+      "both_hands_coverage": 0.3026315789473684,
+      "extractor_latency_median_ms": 66.02730000031443,
+      "extractor_latency_p95_ms": 103.47394999917015,
+      "feature_extraction_wall_ms": 6104.523300000437,
+      "inference_ms": 6.3062000008358154,
+      "top1_label": "happy",
+      "top1_confidence": 0.2603262662887573,
+      "top1_correct": false,
+      "top5_correct": true,
+      "expected_rank_in_top5": 3,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "happy",
+          "confidence": 0.2603262662887573
+        },
+        {
+          "rank": 2,
+          "label": "smalllittle",
+          "confidence": 0.13526633381843567
+        },
+        {
+          "rank": 3,
+          "label": "bird",
+          "confidence": 0.12043234705924988
+        },
+        {
+          "rank": 4,
+          "label": "short",
+          "confidence": 0.1169917955994606
+        },
+        {
+          "rank": 5,
+          "label": "storeorshop",
+          "confidence": 0.08057897537946701
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Colours\\54. Black\\MVI_3741.MOV",
+      "class": "black",
+      "source_fps": 25.0,
+      "declared_source_frames": 52,
+      "frames_processed": 52,
+      "clip_duration_seconds": 2.08,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.7115384615384616,
+      "both_hands_coverage": 0.7115384615384616,
+      "extractor_latency_median_ms": 61.183799999525945,
+      "extractor_latency_p95_ms": 113.27040500027574,
+      "feature_extraction_wall_ms": 4105.913999999757,
+      "inference_ms": 6.783900000300491,
+      "top1_label": "black",
+      "top1_confidence": 0.29203087091445923,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "black",
+          "confidence": 0.29203087091445923
+        },
+        {
+          "rank": 2,
+          "label": "hello",
+          "confidence": 0.14120885729789734
+        },
+        {
+          "rank": 3,
+          "label": "summer",
+          "confidence": 0.13213951885700226
+        },
+        {
+          "rank": 4,
+          "label": "fan",
+          "confidence": 0.0986713096499443
+        },
+        {
+          "rank": 5,
+          "label": "hat",
+          "confidence": 0.08589938282966614
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\People\\77. Boy\\MVI_3814.MOV",
+      "class": "boy",
+      "source_fps": 25.0,
+      "declared_source_frames": 63,
+      "frames_processed": 63,
+      "clip_duration_seconds": 2.52,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.8095238095238095,
+      "both_hands_coverage": 0.8095238095238095,
+      "extractor_latency_median_ms": 59.508299998924485,
+      "extractor_latency_p95_ms": 97.3866000009366,
+      "feature_extraction_wall_ms": 4815.023699999074,
+      "inference_ms": 7.861899999625166,
+      "top1_label": "girl",
+      "top1_confidence": 0.3315891921520233,
+      "top1_correct": false,
+      "top5_correct": true,
+      "expected_rank_in_top5": 2,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "girl",
+          "confidence": 0.3315891921520233
+        },
+        {
+          "rank": 2,
+          "label": "boy",
+          "confidence": 0.2536221742630005
+        },
+        {
+          "rank": 3,
+          "label": "pen",
+          "confidence": 0.1081484705209732
+        },
+        {
+          "rank": 4,
+          "label": "summer",
+          "confidence": 0.059979092329740524
+        },
+        {
+          "rank": 5,
+          "label": "goodmorning",
+          "confidence": 0.04935002699494362
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Means_of_Transportation\\11. Car\\MVI_3117.MOV",
+      "class": "car",
+      "source_fps": 25.0,
+      "declared_source_frames": 98,
+      "frames_processed": 98,
+      "clip_duration_seconds": 3.92,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8979591836734694,
+      "hand_slot_1_coverage": 0.5,
+      "hand_slot_2_coverage": 0.8163265306122449,
+      "both_hands_coverage": 0.41836734693877553,
+      "extractor_latency_median_ms": 68.81610000073124,
+      "extractor_latency_p95_ms": 104.27017999909363,
+      "feature_extraction_wall_ms": 8322.603900000104,
+      "inference_ms": 6.236499999431544,
+      "top1_label": "car",
+      "top1_confidence": 0.8998819589614868,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "car",
+          "confidence": 0.8998819589614868
+        },
+        {
+          "rank": 2,
+          "label": "election",
+          "confidence": 0.01911378838121891
+        },
+        {
+          "rank": 3,
+          "label": "trainticket",
+          "confidence": 0.018637390807271004
+        },
+        {
+          "rank": 4,
+          "label": "paint",
+          "confidence": 0.014880075119435787
+        },
+        {
+          "rank": 5,
+          "label": "window",
+          "confidence": 0.013287380337715149
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Electronics\\54. Cell phone\\MVI_4538.MOV",
+      "class": "cellphone",
+      "source_fps": 25.0,
+      "declared_source_frames": 47,
+      "frames_processed": 47,
+      "clip_duration_seconds": 1.88,
+      "resize_width": "native",
+      "pose_coverage": 0.9787234042553191,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.7021276595744681,
+      "both_hands_coverage": 0.7021276595744681,
+      "extractor_latency_median_ms": 68.80270000146993,
+      "extractor_latency_p95_ms": 106.76897999928761,
+      "feature_extraction_wall_ms": 3954.200200001651,
+      "inference_ms": 6.084199998440454,
+      "top1_label": "hello",
+      "top1_confidence": 0.22386713325977325,
+      "top1_correct": false,
+      "top5_correct": true,
+      "expected_rank_in_top5": 4,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "hello",
+          "confidence": 0.22386713325977325
+        },
+        {
+          "rank": 2,
+          "label": "girl",
+          "confidence": 0.20086687803268433
+        },
+        {
+          "rank": 3,
+          "label": "boy",
+          "confidence": 0.10854575037956238
+        },
+        {
+          "rank": 4,
+          "label": "cellphone",
+          "confidence": 0.09941603988409042
+        },
+        {
+          "rank": 5,
+          "label": "good",
+          "confidence": 0.09340992569923401
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Places\\23. Court\\MVI_3285.MOV",
+      "class": "court",
+      "source_fps": 25.0,
+      "declared_source_frames": 68,
+      "frames_processed": 68,
+      "clip_duration_seconds": 2.72,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8676470588235294,
+      "hand_slot_1_coverage": 0.8382352941176471,
+      "hand_slot_2_coverage": 0.6176470588235294,
+      "both_hands_coverage": 0.5882352941176471,
+      "extractor_latency_median_ms": 69.66790000024048,
+      "extractor_latency_p95_ms": 101.71938500006945,
+      "feature_extraction_wall_ms": 5776.52339999986,
+      "inference_ms": 9.536900000966853,
+      "top1_label": "court",
+      "top1_confidence": 0.45228394865989685,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "court",
+          "confidence": 0.45228394865989685
+        },
+        {
+          "rank": 2,
+          "label": "tshirt",
+          "confidence": 0.18902510404586792
+        },
+        {
+          "rank": 3,
+          "label": "thankyou",
+          "confidence": 0.09134397655725479
+        },
+        {
+          "rank": 4,
+          "label": "happy",
+          "confidence": 0.08184713870286942
+        },
+        {
+          "rank": 5,
+          "label": "shoes",
+          "confidence": 0.05289057642221451
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Animals\\5. Cow\\MVI_2990.MOV",
+      "class": "cow",
+      "source_fps": 25.0,
+      "declared_source_frames": 73,
+      "frames_processed": 73,
+      "clip_duration_seconds": 2.92,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.7945205479452054,
+      "hand_slot_1_coverage": 0.3835616438356164,
+      "hand_slot_2_coverage": 0.7671232876712328,
+      "both_hands_coverage": 0.3561643835616438,
+      "extractor_latency_median_ms": 125.19140000040352,
+      "extractor_latency_p95_ms": 213.3887799991497,
+      "feature_extraction_wall_ms": 10682.213800000682,
+      "inference_ms": 15.175299999100389,
+      "top1_label": "cow",
+      "top1_confidence": 0.6168614625930786,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "cow",
+          "confidence": 0.6168614625930786
+        },
+        {
+          "rank": 2,
+          "label": "window",
+          "confidence": 0.19224359095096588
+        },
+        {
+          "rank": 3,
+          "label": "house",
+          "confidence": 0.03916832432150841
+        },
+        {
+          "rank": 4,
+          "label": "loud",
+          "confidence": 0.018201127648353577
+        },
+        {
+          "rank": 5,
+          "label": "tshirt",
+          "confidence": 0.016843881458044052
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Animals\\1. Dog\\MVI_2979.MOV",
+      "class": "dog",
+      "source_fps": 25.0,
+      "declared_source_frames": 76,
+      "frames_processed": 76,
+      "clip_duration_seconds": 3.04,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8552631578947368,
+      "hand_slot_1_coverage": 0.39473684210526316,
+      "hand_slot_2_coverage": 0.7236842105263158,
+      "both_hands_coverage": 0.2631578947368421,
+      "extractor_latency_median_ms": 78.019549999226,
+      "extractor_latency_p95_ms": 208.96759999959613,
+      "feature_extraction_wall_ms": 8635.690999999497,
+      "inference_ms": 6.740900000295369,
+      "top1_label": "dog",
+      "top1_confidence": 0.394807368516922,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "dog",
+          "confidence": 0.394807368516922
+        },
+        {
+          "rank": 2,
+          "label": "death",
+          "confidence": 0.22741858661174774
+        },
+        {
+          "rank": 3,
+          "label": "dry",
+          "confidence": 0.09477116167545319
+        },
+        {
+          "rank": 4,
+          "label": "tshirt",
+          "confidence": 0.06235351040959358
+        },
+        {
+          "rank": 5,
+          "label": "thankyou",
+          "confidence": 0.050762925297021866
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\People\\61. Father\\MVI_3763.MOV",
+      "class": "father",
+      "source_fps": 25.0,
+      "declared_source_frames": 51,
+      "frames_processed": 51,
+      "clip_duration_seconds": 2.04,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8627450980392157,
+      "hand_slot_1_coverage": 0.7450980392156863,
+      "hand_slot_2_coverage": 0.6274509803921569,
+      "both_hands_coverage": 0.5098039215686274,
+      "extractor_latency_median_ms": 66.20610000027227,
+      "extractor_latency_p95_ms": 105.29239999959827,
+      "feature_extraction_wall_ms": 4161.97160000047,
+      "inference_ms": 5.800900000394904,
+      "top1_label": "long",
+      "top1_confidence": 0.24517540633678436,
+      "top1_correct": false,
+      "top5_correct": true,
+      "expected_rank_in_top5": 2,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "long",
+          "confidence": 0.24517540633678436
+        },
+        {
+          "rank": 2,
+          "label": "father",
+          "confidence": 0.23667286336421967
+        },
+        {
+          "rank": 3,
+          "label": "shoes",
+          "confidence": 0.11460085958242416
+        },
+        {
+          "rank": 4,
+          "label": "time",
+          "confidence": 0.09723369032144547
+        },
+        {
+          "rank": 5,
+          "label": "teacher",
+          "confidence": 0.09438323974609375
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\People\\78. Girl\\MVI_3817.MOV",
+      "class": "girl",
+      "source_fps": 25.0,
+      "declared_source_frames": 51,
+      "frames_processed": 51,
+      "clip_duration_seconds": 2.04,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.7058823529411765,
+      "both_hands_coverage": 0.7058823529411765,
+      "extractor_latency_median_ms": 65.22810000024037,
+      "extractor_latency_p95_ms": 113.41704999995272,
+      "feature_extraction_wall_ms": 4246.4901999992435,
+      "inference_ms": 6.795699999202043,
+      "top1_label": "girl",
+      "top1_confidence": 0.31811195611953735,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "girl",
+          "confidence": 0.31811195611953735
+        },
+        {
+          "rank": 2,
+          "label": "hello",
+          "confidence": 0.16960211098194122
+        },
+        {
+          "rank": 3,
+          "label": "boy",
+          "confidence": 0.13164035975933075
+        },
+        {
+          "rank": 4,
+          "label": "black",
+          "confidence": 0.07430073618888855
+        },
+        {
+          "rank": 5,
+          "label": "summer",
+          "confidence": 0.06350530683994293
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Adjectives\\94. good\\MVI_5160.MOV",
+      "class": "good",
+      "source_fps": 25.0,
+      "declared_source_frames": 62,
+      "frames_processed": 62,
+      "clip_duration_seconds": 2.48,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.8225806451612904,
+      "both_hands_coverage": 0.8225806451612904,
+      "extractor_latency_median_ms": 59.16964999960328,
+      "extractor_latency_p95_ms": 124.26096500012132,
+      "feature_extraction_wall_ms": 5069.487099999606,
+      "inference_ms": 11.827400001493515,
+      "top1_label": "good",
+      "top1_confidence": 0.5219517946243286,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "good",
+          "confidence": 0.5219517946243286
+        },
+        {
+          "rank": 2,
+          "label": "goodmorning",
+          "confidence": 0.15633255243301392
+        },
+        {
+          "rank": 3,
+          "label": "i",
+          "confidence": 0.09073912352323532
+        },
+        {
+          "rank": 4,
+          "label": "new",
+          "confidence": 0.0545489639043808
+        },
+        {
+          "rank": 5,
+          "label": "pen",
+          "confidence": 0.03450474143028259
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Greetings\\51. Good Morning\\MVI_0042.MOV",
+      "class": "goodmorning",
+      "source_fps": 25.0,
+      "declared_source_frames": 85,
+      "frames_processed": 85,
+      "clip_duration_seconds": 3.4,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.8588235294117647,
+      "both_hands_coverage": 0.8588235294117647,
+      "extractor_latency_median_ms": 102.04650000014226,
+      "extractor_latency_p95_ms": 199.47228000019092,
+      "feature_extraction_wall_ms": 10632.272900000316,
+      "inference_ms": 16.417299999375246,
+      "top1_label": "goodmorning",
+      "top1_confidence": 0.47207772731781006,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "goodmorning",
+          "confidence": 0.47207772731781006
+        },
+        {
+          "rank": 2,
+          "label": "hello",
+          "confidence": 0.2231394499540329
+        },
+        {
+          "rank": 3,
+          "label": "good",
+          "confidence": 0.05777057260274887
+        },
+        {
+          "rank": 4,
+          "label": "girl",
+          "confidence": 0.04876519739627838
+        },
+        {
+          "rank": 5,
+          "label": "boy",
+          "confidence": 0.04111659899353981
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Adjectives\\3. happy\\MVI_5184.MOV",
+      "class": "happy",
+      "source_fps": 25.0,
+      "declared_source_frames": 69,
+      "frames_processed": 69,
+      "clip_duration_seconds": 2.76,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.855072463768116,
+      "hand_slot_1_coverage": 0.6811594202898551,
+      "hand_slot_2_coverage": 0.8260869565217391,
+      "both_hands_coverage": 0.6521739130434783,
+      "extractor_latency_median_ms": 60.669999998935964,
+      "extractor_latency_p95_ms": 95.27917999985219,
+      "feature_extraction_wall_ms": 5351.1081999986345,
+      "inference_ms": 7.048900000881986,
+      "top1_label": "happy",
+      "top1_confidence": 0.3375822901725769,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "happy",
+          "confidence": 0.3375822901725769
+        },
+        {
+          "rank": 2,
+          "label": "tshirt",
+          "confidence": 0.17432253062725067
+        },
+        {
+          "rank": 3,
+          "label": "smalllittle",
+          "confidence": 0.07858754694461823
+        },
+        {
+          "rank": 4,
+          "label": "thankyou",
+          "confidence": 0.06197565421462059
+        },
+        {
+          "rank": 5,
+          "label": "hot",
+          "confidence": 0.05297469720244408
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Greetings\\48. Hello\\MVI_0032.MOV",
+      "class": "hello",
+      "source_fps": 25.0,
+      "declared_source_frames": 61,
+      "frames_processed": 61,
+      "clip_duration_seconds": 2.44,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.8360655737704918,
+      "both_hands_coverage": 0.8360655737704918,
+      "extractor_latency_median_ms": 59.32000000029802,
+      "extractor_latency_p95_ms": 90.68920000026992,
+      "feature_extraction_wall_ms": 4533.129400000689,
+      "inference_ms": 5.411799998910283,
+      "top1_label": "hello",
+      "top1_confidence": 0.37030860781669617,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "hello",
+          "confidence": 0.37030860781669617
+        },
+        {
+          "rank": 2,
+          "label": "black",
+          "confidence": 0.11171073466539383
+        },
+        {
+          "rank": 3,
+          "label": "fan",
+          "confidence": 0.11029556393623352
+        },
+        {
+          "rank": 4,
+          "label": "priest",
+          "confidence": 0.10180409252643585
+        },
+        {
+          "rank": 5,
+          "label": "goodmorning",
+          "confidence": 0.05554431676864624
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Places\\19. House\\MVI_3267.MOV",
+      "class": "house",
+      "source_fps": 25.0,
+      "declared_source_frames": 78,
+      "frames_processed": 78,
+      "clip_duration_seconds": 3.12,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8333333333333334,
+      "hand_slot_1_coverage": 0.7051282051282052,
+      "hand_slot_2_coverage": 0.8333333333333334,
+      "both_hands_coverage": 0.7051282051282052,
+      "extractor_latency_median_ms": 68.15800000003946,
+      "extractor_latency_p95_ms": 117.35634000124256,
+      "feature_extraction_wall_ms": 6633.160499999576,
+      "inference_ms": 5.609199999526027,
+      "top1_label": "house",
+      "top1_confidence": 0.8913182020187378,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "house",
+          "confidence": 0.8913182020187378
+        },
+        {
+          "rank": 2,
+          "label": "cow",
+          "confidence": 0.02323036640882492
+        },
+        {
+          "rank": 3,
+          "label": "window",
+          "confidence": 0.020363466814160347
+        },
+        {
+          "rank": 4,
+          "label": "loud",
+          "confidence": 0.016859060153365135
+        },
+        {
+          "rank": 5,
+          "label": "thankyou",
+          "confidence": 0.007794902194291353
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Adjectives\\78. long\\MVI_5107.MOV",
+      "class": "long",
+      "source_fps": 25.0,
+      "declared_source_frames": 71,
+      "frames_processed": 71,
+      "clip_duration_seconds": 2.84,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8732394366197183,
+      "hand_slot_1_coverage": 0.8309859154929577,
+      "hand_slot_2_coverage": 0.8169014084507042,
+      "both_hands_coverage": 0.7746478873239436,
+      "extractor_latency_median_ms": 65.00919999962207,
+      "extractor_latency_p95_ms": 125.83300000005693,
+      "feature_extraction_wall_ms": 5916.376799999853,
+      "inference_ms": 6.029299998772331,
+      "top1_label": "long",
+      "top1_confidence": 0.7354562878608704,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "long",
+          "confidence": 0.7354562878608704
+        },
+        {
+          "rank": 2,
+          "label": "shoes",
+          "confidence": 0.07265613228082657
+        },
+        {
+          "rank": 3,
+          "label": "time",
+          "confidence": 0.03997945785522461
+        },
+        {
+          "rank": 4,
+          "label": "dog",
+          "confidence": 0.031230952590703964
+        },
+        {
+          "rank": 5,
+          "label": "teacher",
+          "confidence": 0.022854391485452652
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Adjectives\\1. loud\\MVI_5179.MOV",
+      "class": "loud",
+      "source_fps": 25.0,
+      "declared_source_frames": 66,
+      "frames_processed": 66,
+      "clip_duration_seconds": 2.64,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8636363636363636,
+      "hand_slot_1_coverage": 0.7424242424242424,
+      "hand_slot_2_coverage": 0.8636363636363636,
+      "both_hands_coverage": 0.7424242424242424,
+      "extractor_latency_median_ms": 57.90610000076413,
+      "extractor_latency_p95_ms": 72.72727500048859,
+      "feature_extraction_wall_ms": 4646.8074999993405,
+      "inference_ms": 6.239000000277883,
+      "top1_label": "house",
+      "top1_confidence": 0.37439215183258057,
+      "top1_correct": false,
+      "top5_correct": true,
+      "expected_rank_in_top5": 2,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "house",
+          "confidence": 0.37439215183258057
+        },
+        {
+          "rank": 2,
+          "label": "loud",
+          "confidence": 0.2408723384141922
+        },
+        {
+          "rank": 3,
+          "label": "hot",
+          "confidence": 0.05534227192401886
+        },
+        {
+          "rank": 4,
+          "label": "thankyou",
+          "confidence": 0.054413340985774994
+        },
+        {
+          "rank": 5,
+          "label": "biglarge",
+          "confidence": 0.05253652110695839
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Days_and_Time\\67. Monday\\MVI_4591.MOV",
+      "class": "monday",
+      "source_fps": 25.0,
+      "declared_source_frames": 57,
+      "frames_processed": 57,
+      "clip_duration_seconds": 2.28,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.7719298245614035,
+      "hand_slot_1_coverage": 0.19298245614035087,
+      "hand_slot_2_coverage": 0.7719298245614035,
+      "both_hands_coverage": 0.19298245614035087,
+      "extractor_latency_median_ms": 64.16499999977532,
+      "extractor_latency_p95_ms": 88.58159999981577,
+      "feature_extraction_wall_ms": 4276.883000000453,
+      "inference_ms": 6.987099999605562,
+      "top1_label": "monday",
+      "top1_confidence": 0.6875836849212646,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "monday",
+          "confidence": 0.6875836849212646
+        },
+        {
+          "rank": 2,
+          "label": "hot",
+          "confidence": 0.09699966013431549
+        },
+        {
+          "rank": 3,
+          "label": "bank",
+          "confidence": 0.04838576912879944
+        },
+        {
+          "rank": 4,
+          "label": "thankyou",
+          "confidence": 0.03417555242776871
+        },
+        {
+          "rank": 5,
+          "label": "dry",
+          "confidence": 0.021349646151065826
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Home\\34. Pen\\MVI_4387.MOV",
+      "class": "pen",
+      "source_fps": 25.0,
+      "declared_source_frames": 64,
+      "frames_processed": 64,
+      "clip_duration_seconds": 2.56,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.796875,
+      "both_hands_coverage": 0.796875,
+      "extractor_latency_median_ms": 71.6940499996781,
+      "extractor_latency_p95_ms": 109.68309499958191,
+      "feature_extraction_wall_ms": 5491.5244999992865,
+      "inference_ms": 6.053700000848039,
+      "top1_label": "pen",
+      "top1_confidence": 0.49058452248573303,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "pen",
+          "confidence": 0.49058452248573303
+        },
+        {
+          "rank": 2,
+          "label": "red",
+          "confidence": 0.13555200397968292
+        },
+        {
+          "rank": 3,
+          "label": "boy",
+          "confidence": 0.09483974426984787
+        },
+        {
+          "rank": 4,
+          "label": "girl",
+          "confidence": 0.07662574201822281
+        },
+        {
+          "rank": 5,
+          "label": "white",
+          "confidence": 0.05129159241914749
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Adjectives\\2. quiet\\MVI_5181.MOV",
+      "class": "quiet",
+      "source_fps": 25.0,
+      "declared_source_frames": 74,
+      "frames_processed": 74,
+      "clip_duration_seconds": 2.96,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.8243243243243243,
+      "both_hands_coverage": 0.8243243243243243,
+      "extractor_latency_median_ms": 56.082299999616225,
+      "extractor_latency_p95_ms": 75.1380549996611,
+      "feature_extraction_wall_ms": 5224.685099999988,
+      "inference_ms": 9.888900000078138,
+      "top1_label": "quiet",
+      "top1_confidence": 0.3513808250427246,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "quiet",
+          "confidence": 0.3513808250427246
+        },
+        {
+          "rank": 2,
+          "label": "i",
+          "confidence": 0.22588396072387695
+        },
+        {
+          "rank": 3,
+          "label": "white",
+          "confidence": 0.1169997826218605
+        },
+        {
+          "rank": 4,
+          "label": "youplural",
+          "confidence": 0.11615312844514847
+        },
+        {
+          "rank": 5,
+          "label": "brother",
+          "confidence": 0.043209366500377655
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Colours\\47. Red\\MVI_3719.MOV",
+      "class": "red",
+      "source_fps": 25.0,
+      "declared_source_frames": 58,
+      "frames_processed": 58,
+      "clip_duration_seconds": 2.32,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.7586206896551724,
+      "both_hands_coverage": 0.7586206896551724,
+      "extractor_latency_median_ms": 64.5660999998654,
+      "extractor_latency_p95_ms": 110.09726999991472,
+      "feature_extraction_wall_ms": 4692.278200000146,
+      "inference_ms": 9.19640000029176,
+      "top1_label": "pen",
+      "top1_confidence": 0.23667843639850616,
+      "top1_correct": false,
+      "top5_correct": true,
+      "expected_rank_in_top5": 2,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "pen",
+          "confidence": 0.23667843639850616
+        },
+        {
+          "rank": 2,
+          "label": "red",
+          "confidence": 0.19425508379936218
+        },
+        {
+          "rank": 3,
+          "label": "white",
+          "confidence": 0.16201329231262207
+        },
+        {
+          "rank": 4,
+          "label": "quiet",
+          "confidence": 0.1104988232254982
+        },
+        {
+          "rank": 5,
+          "label": "boy",
+          "confidence": 0.05988902226090431
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Adjectives\\79. short\\MVI_5110.MOV",
+      "class": "short",
+      "source_fps": 25.0,
+      "declared_source_frames": 62,
+      "frames_processed": 62,
+      "clip_duration_seconds": 2.48,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8548387096774194,
+      "hand_slot_1_coverage": 0.6935483870967742,
+      "hand_slot_2_coverage": 0.8387096774193549,
+      "both_hands_coverage": 0.6774193548387096,
+      "extractor_latency_median_ms": 56.58124999990832,
+      "extractor_latency_p95_ms": 75.80925999982355,
+      "feature_extraction_wall_ms": 4398.792500000127,
+      "inference_ms": 9.6901999986585,
+      "top1_label": "monday",
+      "top1_confidence": 0.24690763652324677,
+      "top1_correct": false,
+      "top5_correct": false,
+      "expected_rank_in_top5": null,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "monday",
+          "confidence": 0.24690763652324677
+        },
+        {
+          "rank": 2,
+          "label": "teacher",
+          "confidence": 0.16720795631408691
+        },
+        {
+          "rank": 3,
+          "label": "shoes",
+          "confidence": 0.14394600689411163
+        },
+        {
+          "rank": 4,
+          "label": "election",
+          "confidence": 0.09816975891590118
+        },
+        {
+          "rank": 5,
+          "label": "long",
+          "confidence": 0.04967260733246803
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Places\\28. Store or Shop\\MVI_3309.MOV",
+      "class": "storeorshop",
+      "source_fps": 25.0,
+      "declared_source_frames": 63,
+      "frames_processed": 63,
+      "clip_duration_seconds": 2.52,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.6825396825396826,
+      "hand_slot_1_coverage": 0.6031746031746031,
+      "hand_slot_2_coverage": 0.6031746031746031,
+      "both_hands_coverage": 0.5238095238095238,
+      "extractor_latency_median_ms": 69.29630000013276,
+      "extractor_latency_p95_ms": 114.33078999889403,
+      "feature_extraction_wall_ms": 5470.915900001273,
+      "inference_ms": 5.505600000105915,
+      "top1_label": "storeorshop",
+      "top1_confidence": 0.21074001491069794,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "storeorshop",
+          "confidence": 0.21074001491069794
+        },
+        {
+          "rank": 2,
+          "label": "happy",
+          "confidence": 0.18244290351867676
+        },
+        {
+          "rank": 3,
+          "label": "short",
+          "confidence": 0.18206392228603363
+        },
+        {
+          "rank": 4,
+          "label": "shoes",
+          "confidence": 0.17568059265613556
+        },
+        {
+          "rank": 5,
+          "label": "bird",
+          "confidence": 0.048692844808101654
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Jobs\\84. Teacher\\MVI_4458.MOV",
+      "class": "teacher",
+      "source_fps": 25.0,
+      "declared_source_frames": 73,
+      "frames_processed": 73,
+      "clip_duration_seconds": 2.92,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8356164383561644,
+      "hand_slot_1_coverage": 0.6438356164383562,
+      "hand_slot_2_coverage": 0.7671232876712328,
+      "both_hands_coverage": 0.5753424657534246,
+      "extractor_latency_median_ms": 63.50409999868134,
+      "extractor_latency_p95_ms": 101.17974000022511,
+      "feature_extraction_wall_ms": 5600.975499999549,
+      "inference_ms": 9.426699998584809,
+      "top1_label": "teacher",
+      "top1_confidence": 0.5935998558998108,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "teacher",
+          "confidence": 0.5935998558998108
+        },
+        {
+          "rank": 2,
+          "label": "long",
+          "confidence": 0.18377988040447235
+        },
+        {
+          "rank": 3,
+          "label": "time",
+          "confidence": 0.06194649636745453
+        },
+        {
+          "rank": 4,
+          "label": "bank",
+          "confidence": 0.041796404868364334
+        },
+        {
+          "rank": 5,
+          "label": "i",
+          "confidence": 0.017120352014899254
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Greetings\\55. Thank you\\MVI_0007.MOV",
+      "class": "thankyou",
+      "source_fps": 25.0,
+      "declared_source_frames": 56,
+      "frames_processed": 56,
+      "clip_duration_seconds": 2.24,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8928571428571429,
+      "hand_slot_1_coverage": 0.8035714285714286,
+      "hand_slot_2_coverage": 0.875,
+      "both_hands_coverage": 0.7857142857142857,
+      "extractor_latency_median_ms": 60.30740000005608,
+      "extractor_latency_p95_ms": 83.09314999905837,
+      "feature_extraction_wall_ms": 4113.785999999891,
+      "inference_ms": 8.300200001031044,
+      "top1_label": "thankyou",
+      "top1_confidence": 0.26589614152908325,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "thankyou",
+          "confidence": 0.26589614152908325
+        },
+        {
+          "rank": 2,
+          "label": "hot",
+          "confidence": 0.23481594026088715
+        },
+        {
+          "rank": 3,
+          "label": "monday",
+          "confidence": 0.1728273183107376
+        },
+        {
+          "rank": 4,
+          "label": "paint",
+          "confidence": 0.11075921356678009
+        },
+        {
+          "rank": 5,
+          "label": "bank",
+          "confidence": 0.05242127180099487
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Clothes\\42. T-Shirt\\MVI_3705.MOV",
+      "class": "tshirt",
+      "source_fps": 25.0,
+      "declared_source_frames": 70,
+      "frames_processed": 70,
+      "clip_duration_seconds": 2.8,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.8857142857142857,
+      "hand_slot_1_coverage": 0.7428571428571429,
+      "hand_slot_2_coverage": 0.7571428571428571,
+      "both_hands_coverage": 0.6142857142857143,
+      "extractor_latency_median_ms": 59.68324999957986,
+      "extractor_latency_p95_ms": 82.1294650006166,
+      "feature_extraction_wall_ms": 5024.419799998213,
+      "inference_ms": 9.514899998976034,
+      "top1_label": "tshirt",
+      "top1_confidence": 0.7223490476608276,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "tshirt",
+          "confidence": 0.7223490476608276
+        },
+        {
+          "rank": 2,
+          "label": "court",
+          "confidence": 0.06887183338403702
+        },
+        {
+          "rank": 3,
+          "label": "death",
+          "confidence": 0.05181331932544708
+        },
+        {
+          "rank": 4,
+          "label": "dry",
+          "confidence": 0.04422643780708313
+        },
+        {
+          "rank": 5,
+          "label": "election",
+          "confidence": 0.03635961934924126
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Colours\\55. White\\MVI_3743.MOV",
+      "class": "white",
+      "source_fps": 25.0,
+      "declared_source_frames": 51,
+      "frames_processed": 51,
+      "clip_duration_seconds": 2.04,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 1.0,
+      "hand_slot_1_coverage": 1.0,
+      "hand_slot_2_coverage": 0.6862745098039216,
+      "both_hands_coverage": 0.6862745098039216,
+      "extractor_latency_median_ms": 66.51120000060473,
+      "extractor_latency_p95_ms": 94.48374999919906,
+      "feature_extraction_wall_ms": 4056.0186999991856,
+      "inference_ms": 9.945699999661883,
+      "top1_label": "white",
+      "top1_confidence": 0.3615957498550415,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "white",
+          "confidence": 0.3615957498550415
+        },
+        {
+          "rank": 2,
+          "label": "quiet",
+          "confidence": 0.2601703703403473
+        },
+        {
+          "rank": 3,
+          "label": "i",
+          "confidence": 0.12406861037015915
+        },
+        {
+          "rank": 4,
+          "label": "red",
+          "confidence": 0.0777474120259285
+        },
+        {
+          "rank": 5,
+          "label": "brother",
+          "confidence": 0.03438150882720947
+        }
+      ]
+    },
+    {
+      "video": "C:\\AIAssets\\INCLUDE_videos\\Home\\28. Window\\MVI_4881.MOV",
+      "class": "window",
+      "source_fps": 25.0,
+      "declared_source_frames": 72,
+      "frames_processed": 72,
+      "clip_duration_seconds": 2.88,
+      "resize_width": "native",
+      "pose_coverage": 1.0,
+      "any_hand_coverage": 0.6944444444444444,
+      "hand_slot_1_coverage": 0.4583333333333333,
+      "hand_slot_2_coverage": 0.6111111111111112,
+      "both_hands_coverage": 0.375,
+      "extractor_latency_median_ms": 62.86220000038156,
+      "extractor_latency_p95_ms": 108.69200500083029,
+      "feature_extraction_wall_ms": 5542.739900000015,
+      "inference_ms": 5.780299999969429,
+      "top1_label": "window",
+      "top1_confidence": 0.7652540802955627,
+      "top1_correct": true,
+      "top5_correct": true,
+      "expected_rank_in_top5": 1,
+      "top5": [
+        {
+          "rank": 1,
+          "label": "window",
+          "confidence": 0.7652540802955627
+        },
+        {
+          "rank": 2,
+          "label": "cow",
+          "confidence": 0.049987245351076126
+        },
+        {
+          "rank": 3,
+          "label": "paint",
+          "confidence": 0.049565330147743225
+        },
+        {
+          "rank": 4,
+          "label": "car",
+          "confidence": 0.0381605289876461
+        },
+        {
+          "rank": 5,
+          "label": "election",
+          "confidence": 0.02066793479025364
+        }
+      ]
+    }
+  ],
+  "elapsed_seconds": 165.47657679999975,
+  "limitations": [
+    "This uses the app's MediaPipe extractor and the currently configured pretrained model.",
+    "It is a local-gallery smoke benchmark, not an official held-out test evaluation.",
+    "One clip per class gives weak class coverage and cannot establish generalization to live webcam signers.",
+    "Threshold sweep is descriptive only; do not choose a production confidence threshold from this run alone."
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "description": "Leave mappings empty until the two IoT demonstration signs are selected. Configure exactly two official INCLUDE-50 labels; this does not change model classes or class ordering.",
+  "mappings": {}
+}

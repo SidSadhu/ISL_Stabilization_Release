@@ -1,0 +1,762 @@
+{
+  "campaign": "ISL Phase 2 root-cause analysis of Phase 1 evidence",
+  "source_metrics_generated_at_utc": "2026-11-07T11:49:43Z",
+  "sample_count": 77,
+  "class_count": 50,
+  "class_support_distribution": {
+    "1": 23,
+    "2": 27
+  },
+  "classes_with_support_1": 23,
+  "classes_with_support_2": 27,
+  "recognition": {
+    "browser_canvas": {
+      "top1_correct": 44,
+      "top1_accuracy": 0.5714285714285714,
+      "top5_correct": 67,
+      "top5_accuracy": 0.8701298701298701,
+      "macro_f1": 0.5206666666666666,
+      "weighted_f1": 0.5311688311688312,
+      "accepted_at_0_40": 45,
+      "coverage_at_0_40": 0.5844155844155844,
+      "selective_accuracy_at_0_40": 0.7777777777777778,
+      "confidence": {
+        "min": 0.1479489654302597,
+        "median": 0.4432467520236969,
+        "max": 0.918056070804596
+      }
+    },
+    "opencv_native_reference": {
+      "top1_correct": 46,
+      "top1_accuracy": 0.5974025974025974,
+      "top5_correct": 69,
+      "top5_accuracy": 0.8961038961038961,
+      "macro_f1": 0.5594285714285714,
+      "weighted_f1": 0.5460111317254175,
+      "accepted_at_0_40": 45,
+      "coverage_at_0_40": 0.5844155844155844,
+      "selective_accuracy_at_0_40": 0.8,
+      "confidence": {
+        "min": 0.14017455279827118,
+        "median": 0.44464704394340515,
+        "max": 0.9140384793281555
+      }
+    }
+  },
+  "paired_outcomes": {
+    "same_top1_predictions": 66,
+    "same_top1_rate": 0.8571428571428571,
+    "both_correct": 43,
+    "only_browser_correct": 1,
+    "only_opencv_correct": 3,
+    "both_wrong": 30,
+    "browser_top1_wilson_95_percent_interval": [
+      0.46010331091803647,
+      0.6759652478437891
+    ],
+    "opencv_top1_wilson_95_percent_interval": [
+      0.48576649330491517,
+      0.6997815413703016
+    ],
+    "mcnemar_exact_two_sided_p_value": 0.625,
+    "mcnemar_discordant_only_opencv_correct": 3,
+    "mcnemar_discordant_only_browser_correct": 1
+  },
+  "frames": {
+    "browser_submitted_frames": 4753,
+    "browser_received_frames": 4753,
+    "browser_decoded_frames": 4753,
+    "browser_extracted_frames": 4753,
+    "browser_failed_extractions": 0,
+    "browser_duplicate_timer_skips": 8,
+    "browser_decoder_dropped_frames": 0,
+    "browser_diagnostic_gate_accepted_captures": 77,
+    "browser_accepted_feature_frames": 4753,
+    "browser_invalid_or_unaccepted_feature_frames": 0,
+    "raw_reference_submitted_frames": 4753,
+    "raw_reference_decoded_frames": 4727,
+    "raw_reference_extracted_frames": 4727,
+    "raw_reference_failed_extractions": 26,
+    "raw_reference_accepted_feature_frames": 4727
+  },
+  "coverage_means": {
+    "browser_pose_ratio": 0.9994907053730584,
+    "opencv_pose_ratio": 1.0,
+    "browser_any_hand_ratio": 0.8495074015322677,
+    "opencv_any_hand_ratio": 0.8712687643513397
+  },
+  "feature_difference_distribution": {
+    "feature_mad": {
+      "count": 77,
+      "mean": 21.558226241706887,
+      "median": 16.62836033031448,
+      "p90": 42.97100158378243,
+      "p95": 52.16176294220595,
+      "max": 96.54810513293728
+    },
+    "pose_feature_mad": {
+      "count": 77,
+      "mean": 5.944777254335624,
+      "median": 5.897377489151493,
+      "p90": 7.3764381321283565,
+      "p95": 7.7248801785423655,
+      "max": 9.274176791878634
+    },
+    "hand1_feature_mad": {
+      "count": 75,
+      "mean": 38.71619930441712,
+      "median": 29.82465487687045,
+      "p90": 73.72380637409407,
+      "p95": 93.64905025494467,
+      "max": 111.320920473621
+    },
+    "hand2_feature_mad": {
+      "count": 77,
+      "mean": 30.45018314963698,
+      "median": 15.66017189867682,
+      "p90": 75.05897013762723,
+      "p95": 100.26037964974405,
+      "max": 332.2294870770167
+    },
+    "padded_sequence_mad": {
+      "count": 77,
+      "mean": 14.103037180838648,
+      "median": 11.535603523254396,
+      "p90": 24.141859054565437,
+      "p95": 28.586775970458987,
+      "max": 82.9198226928711
+    },
+    "logit_mad": {
+      "count": 77,
+      "mean": 0.2924048296916041,
+      "median": 0.1195990027487278,
+      "p90": 0.8894391844868672,
+      "p95": 1.1700756404846906,
+      "max": 1.5793287194520236
+    },
+    "probability_mad": {
+      "count": 77,
+      "mean": 0.00495982535541338,
+      "median": 0.0014141536357783,
+      "p90": 0.014766541971825023,
+      "p95": 0.022426869098202545,
+      "max": 0.0312430038383899
+    }
+  },
+  "exploratory_spearman_associations": {
+    "feature_mad": {
+      "spearman_with_browser_error": -0.07910938714143359,
+      "spearman_with_prediction_disagreement": 0.12690589826402052,
+      "warning": "Exploratory descriptive association on 77 validation clips; not causal and not a reliable inferential estimate."
+    },
+    "pose_feature_mad": {
+      "spearman_with_browser_error": -0.07438643865537786,
+      "spearman_with_prediction_disagreement": 0.11855682600980863,
+      "warning": "Exploratory descriptive association on 77 validation clips; not causal and not a reliable inferential estimate."
+    },
+    "hand1_feature_mad": {
+      "spearman_with_browser_error": -0.00875505385433033,
+      "spearman_with_prediction_disagreement": 0.15581517075131732,
+      "warning": "Exploratory descriptive association on 77 validation clips; not causal and not a reliable inferential estimate."
+    },
+    "hand2_feature_mad": {
+      "spearman_with_browser_error": 0.13932698033864424,
+      "spearman_with_prediction_disagreement": 0.19870791965024265,
+      "warning": "Exploratory descriptive association on 77 validation clips; not causal and not a reliable inferential estimate."
+    },
+    "padded_sequence_mad": {
+      "spearman_with_browser_error": 0.09091675835657294,
+      "spearman_with_prediction_disagreement": 0.2888778999957309,
+      "warning": "Exploratory descriptive association on 77 validation clips; not causal and not a reliable inferential estimate."
+    },
+    "logit_mad": {
+      "spearman_with_browser_error": 0.2668465894621491,
+      "spearman_with_prediction_disagreement": 0.4291423138664903,
+      "warning": "Exploratory descriptive association on 77 validation clips; not causal and not a reliable inferential estimate."
+    },
+    "probability_mad": {
+      "spearman_with_browser_error": 0.37547440464143117,
+      "spearman_with_prediction_disagreement": 0.4625386028833379,
+      "warning": "Exploratory descriptive association on 77 validation clips; not causal and not a reliable inferential estimate."
+    }
+  },
+  "prediction_disagreements": [
+    {
+      "video_path": "Days_and_Time/86. Time/MVI_9204.MOV",
+      "label": "time",
+      "browser_prediction": "teacher",
+      "raw_prediction": "time",
+      "browser_confidence": 0.302058070898056,
+      "raw_confidence": 0.3544641733169555,
+      "pose_feature_mad": 4.371540669032505,
+      "hand1_feature_mad": 57.92983454413304,
+      "hand2_feature_mad": 53.22077659799271,
+      "padded_sequence_mad": 19.16806030273437,
+      "logit_mad": 0.4081798547506332,
+      "top5_overlap_count": 4
+    },
+    {
+      "video_path": "Places/23. Court/MVI_3532.MOV",
+      "label": "court",
+      "browser_prediction": "storeorshop",
+      "raw_prediction": "bank",
+      "browser_confidence": 0.3089018762111664,
+      "raw_confidence": 0.210754856467247,
+      "pose_feature_mad": 7.903251397269113,
+      "hand1_feature_mad": 35.70632854877712,
+      "hand2_feature_mad": 9.484397252400717,
+      "padded_sequence_mad": 18.106557846069336,
+      "logit_mad": 1.110870012789965,
+      "top5_overlap_count": 3
+    },
+    {
+      "video_path": "Colours/47. Red/MVI_3866.MOV",
+      "label": "red",
+      "browser_prediction": "i",
+      "raw_prediction": "youplural",
+      "browser_confidence": 0.3058752417564392,
+      "raw_confidence": 0.2995196878910064,
+      "pose_feature_mad": 5.039103527832031,
+      "hand1_feature_mad": 28.537544768802704,
+      "hand2_feature_mad": 4.739359683082217,
+      "padded_sequence_mad": 5.454174995422363,
+      "logit_mad": 0.0220670562982559,
+      "top5_overlap_count": 5
+    },
+    {
+      "video_path": "Adjectives/1. loud/MVI_9534.MOV",
+      "label": "loud",
+      "browser_prediction": "biglarge",
+      "raw_prediction": "bird",
+      "browser_confidence": 0.2508984506130218,
+      "raw_confidence": 0.2983100414276123,
+      "pose_feature_mad": 6.908069588797433,
+      "hand1_feature_mad": 25.67035430213186,
+      "hand2_feature_mad": 16.3494422718272,
+      "padded_sequence_mad": 6.896379470825195,
+      "logit_mad": 0.2803006372228265,
+      "top5_overlap_count": 5
+    },
+    {
+      "video_path": "Colours/55. White/MVI_5063.MOV",
+      "label": "white",
+      "browser_prediction": "fall",
+      "raw_prediction": "red",
+      "browser_confidence": 0.1750074923038482,
+      "raw_confidence": 0.3597992956638336,
+      "pose_feature_mad": 7.314987145248724,
+      "hand1_feature_mad": NaN,
+      "hand2_feature_mad": 5.737334666849234,
+      "padded_sequence_mad": 82.9198226928711,
+      "logit_mad": 1.5793287194520236,
+      "top5_overlap_count": 1
+    },
+    {
+      "video_path": "Days_and_Time/78. Year/MVI_9175.MOV",
+      "label": "year",
+      "browser_prediction": "long",
+      "raw_prediction": "shoes",
+      "browser_confidence": 0.3012298345565796,
+      "raw_confidence": 0.1729024350643158,
+      "pose_feature_mad": 4.707499704996745,
+      "hand1_feature_mad": 74.6428410928716,
+      "hand2_feature_mad": 94.20902744838168,
+      "padded_sequence_mad": 20.86710929870605,
+      "logit_mad": 0.8094581127166748,
+      "top5_overlap_count": 4
+    },
+    {
+      "video_path": "Adjectives/79. short/MVI_9302.MOV",
+      "label": "short",
+      "browser_prediction": "smalllittle",
+      "raw_prediction": "happy",
+      "browser_confidence": 0.5202314853668213,
+      "raw_confidence": 0.4473476111888885,
+      "pose_feature_mad": 9.274176791878634,
+      "hand1_feature_mad": 110.90314221680912,
+      "hand2_feature_mad": 111.89972975681158,
+      "padded_sequence_mad": 17.859285354614258,
+      "logit_mad": 1.3790122286602855,
+      "top5_overlap_count": 4
+    },
+    {
+      "video_path": "Society/2. Death/MVI_8663.MOV",
+      "label": "death",
+      "browser_prediction": "dog",
+      "raw_prediction": "death",
+      "browser_confidence": 0.3503009974956512,
+      "raw_confidence": 0.7211124300956726,
+      "pose_feature_mad": 4.760442394877589,
+      "hand1_feature_mad": 53.65306873810597,
+      "hand2_feature_mad": 112.30622696204598,
+      "padded_sequence_mad": 43.65026473999024,
+      "logit_mad": 1.1804278232902288,
+      "top5_overlap_count": 4
+    },
+    {
+      "video_path": "Adjectives/83. big large/MVI_9396.MOV",
+      "label": "biglarge",
+      "browser_prediction": "biglarge",
+      "raw_prediction": "happy",
+      "browser_confidence": 0.7111127972602844,
+      "raw_confidence": 0.4381979405879974,
+      "pose_feature_mad": 7.51203611101423,
+      "hand1_feature_mad": 25.27879230009357,
+      "hand2_feature_mad": 17.038020212412913,
+      "padded_sequence_mad": 16.518651962280273,
+      "logit_mad": 1.3038734252378346,
+      "top5_overlap_count": 2
+    },
+    {
+      "video_path": "Adjectives/87. hot/MVI_9410.MOV",
+      "label": "hot",
+      "browser_prediction": "time",
+      "raw_prediction": "short",
+      "browser_confidence": 0.3239418268203735,
+      "raw_confidence": 0.1401745527982711,
+      "pose_feature_mad": 6.407436512538365,
+      "hand1_feature_mad": 20.150627805475605,
+      "hand2_feature_mad": 42.00442134312221,
+      "padded_sequence_mad": 19.91933250427246,
+      "logit_mad": 1.167487594783306,
+      "top5_overlap_count": 3
+    },
+    {
+      "video_path": "Places/35. Bank/MVI_3421.MOV",
+      "label": "bank",
+      "browser_prediction": "monday",
+      "raw_prediction": "bank",
+      "browser_confidence": 0.4003574848175049,
+      "raw_confidence": 0.4398832023143768,
+      "pose_feature_mad": 6.068181762695312,
+      "hand1_feature_mad": 56.68402977595254,
+      "hand2_feature_mad": 33.155076171604634,
+      "padded_sequence_mad": 12.24099349975586,
+      "logit_mad": 0.2035998447239398,
+      "top5_overlap_count": 5
+    }
+  ],
+  "browser_misclassified_examples": [
+    {
+      "video_path": "Days_and_Time/86. Time/MVI_9204.MOV",
+      "label": "time",
+      "browser_prediction": "teacher",
+      "browser_confidence": 0.302058070898056
+    },
+    {
+      "video_path": "Places/23. Court/MVI_3532.MOV",
+      "label": "court",
+      "browser_prediction": "storeorshop",
+      "browser_confidence": 0.3089018762111664
+    },
+    {
+      "video_path": "People/66. Brother/MVI_5245.MOV",
+      "label": "brother",
+      "browser_prediction": "white",
+      "browser_confidence": 0.2884940803050995
+    },
+    {
+      "video_path": "Adjectives/2. quiet/MVI_9537.MOV",
+      "label": "quiet",
+      "browser_prediction": "i",
+      "browser_confidence": 0.3672533631324768
+    },
+    {
+      "video_path": "Electronics/54. Cell phone/MVI_5394.MOV",
+      "label": "cellphone",
+      "browser_prediction": "hello",
+      "browser_confidence": 0.2269918173551559
+    },
+    {
+      "video_path": "Animals/1. Dog/MVI_8561.MOV",
+      "label": "dog",
+      "browser_prediction": "dry",
+      "browser_confidence": 0.361969530582428
+    },
+    {
+      "video_path": "Colours/47. Red/MVI_3866.MOV",
+      "label": "red",
+      "browser_prediction": "i",
+      "browser_confidence": 0.3058752417564392
+    },
+    {
+      "video_path": "Places/19. House/MVI_3514.MOV",
+      "label": "house",
+      "browser_prediction": "storeorshop",
+      "browser_confidence": 0.408799797296524
+    },
+    {
+      "video_path": "Adjectives/1. loud/MVI_9534.MOV",
+      "label": "loud",
+      "browser_prediction": "biglarge",
+      "browser_confidence": 0.2508984506130218
+    },
+    {
+      "video_path": "Clothes/44. Shoes/MVI_3856.MOV",
+      "label": "shoes",
+      "browser_prediction": "long",
+      "browser_confidence": 0.5126500725746155
+    },
+    {
+      "video_path": "Adjectives/83. big large/MVI_5125.MOV",
+      "label": "biglarge",
+      "browser_prediction": "smalllittle",
+      "browser_confidence": 0.2160078138113021
+    },
+    {
+      "video_path": "Colours/55. White/MVI_5063.MOV",
+      "label": "white",
+      "browser_prediction": "fall",
+      "browser_confidence": 0.1750074923038482
+    },
+    {
+      "video_path": "People/78. Girl/MVI_4115.MOV",
+      "label": "girl",
+      "browser_prediction": "boy",
+      "browser_confidence": 0.296744704246521
+    },
+    {
+      "video_path": "Clothes/44. Shoes/MVI_4008.MOV",
+      "label": "shoes",
+      "browser_prediction": "election",
+      "browser_confidence": 0.4684579968452453
+    },
+    {
+      "video_path": "Adjectives/84. small little/MVI_5208.MOV",
+      "label": "smalllittle",
+      "browser_prediction": "short",
+      "browser_confidence": 0.367212563753128
+    },
+    {
+      "video_path": "Clothes/42. T-Shirt/MVI_5023.MOV",
+      "label": "tshirt",
+      "browser_prediction": "election",
+      "browser_confidence": 0.5666218400001526
+    },
+    {
+      "video_path": "People/77. Boy/MVI_3962.MOV",
+      "label": "boy",
+      "browser_prediction": "girl",
+      "browser_confidence": 0.2884206473827362
+    },
+    {
+      "video_path": "Pronouns/40. I/MVI_0003.MOV",
+      "label": "i",
+      "browser_prediction": "girl",
+      "browser_confidence": 0.2838733196258545
+    },
+    {
+      "video_path": "Days_and_Time/78. Year/MVI_9175.MOV",
+      "label": "year",
+      "browser_prediction": "long",
+      "browser_confidence": 0.3012298345565796
+    },
+    {
+      "video_path": "Adjectives/79. short/MVI_9302.MOV",
+      "label": "short",
+      "browser_prediction": "smalllittle",
+      "browser_confidence": 0.5202314853668213
+    },
+    {
+      "video_path": "Society/2. Death/MVI_8663.MOV",
+      "label": "death",
+      "browser_prediction": "dog",
+      "browser_confidence": 0.3503009974956512
+    },
+    {
+      "video_path": "Greetings/55. Thank you/MVI_0112.MOV",
+      "label": "thankyou",
+      "browser_prediction": "hot",
+      "browser_confidence": 0.4164594709873199
+    },
+    {
+      "video_path": "Electronics/53. Fan/MVI_4964.MOV",
+      "label": "fan",
+      "browser_prediction": "black",
+      "browser_confidence": 0.5269876718521118
+    },
+    {
+      "video_path": "Seasons/64. Fall/MVI_5433.MOV",
+      "label": "fall",
+      "browser_prediction": "brother",
+      "browser_confidence": 0.3361218571662903
+    },
+    {
+      "video_path": "People/78. Girl/MVI_4986.MOV",
+      "label": "girl",
+      "browser_prediction": "white",
+      "browser_confidence": 0.2641395628452301
+    },
+    {
+      "video_path": "People/77. Boy/MVI_3815.MOV",
+      "label": "boy",
+      "browser_prediction": "girl",
+      "browser_confidence": 0.3262536227703094
+    },
+    {
+      "video_path": "People/61. Father/MVI_8626.MOV",
+      "label": "father",
+      "browser_prediction": "long",
+      "browser_confidence": 0.2931850254535675
+    },
+    {
+      "video_path": "People/61. Father/MVI_3909.MOV",
+      "label": "father",
+      "browser_prediction": "long",
+      "browser_confidence": 0.4121508300304413
+    },
+    {
+      "video_path": "Colours/47. Red/MVI_4897.MOV",
+      "label": "red",
+      "browser_prediction": "pen",
+      "browser_confidence": 0.2718120515346527
+    },
+    {
+      "video_path": "Places/28. Store or Shop/MVI_3307.MOV",
+      "label": "storeorshop",
+      "browser_prediction": "happy",
+      "browser_confidence": 0.3713127374649048
+    },
+    {
+      "video_path": "Adjectives/1. loud/MVI_5178.MOV",
+      "label": "loud",
+      "browser_prediction": "house",
+      "browser_confidence": 0.4738495051860809
+    },
+    {
+      "video_path": "Adjectives/87. hot/MVI_9410.MOV",
+      "label": "hot",
+      "browser_prediction": "time",
+      "browser_confidence": 0.3239418268203735
+    },
+    {
+      "video_path": "Places/35. Bank/MVI_3421.MOV",
+      "label": "bank",
+      "browser_prediction": "monday",
+      "browser_confidence": 0.4003574848175049
+    }
+  ],
+  "most_common_browser_confusions": [
+    {
+      "actual": "boy",
+      "predicted": "girl",
+      "count": 2
+    },
+    {
+      "actual": "father",
+      "predicted": "long",
+      "count": 2
+    },
+    {
+      "actual": "bank",
+      "predicted": "monday",
+      "count": 1
+    },
+    {
+      "actual": "biglarge",
+      "predicted": "smalllittle",
+      "count": 1
+    },
+    {
+      "actual": "brother",
+      "predicted": "white",
+      "count": 1
+    },
+    {
+      "actual": "cellphone",
+      "predicted": "hello",
+      "count": 1
+    },
+    {
+      "actual": "court",
+      "predicted": "storeorshop",
+      "count": 1
+    },
+    {
+      "actual": "death",
+      "predicted": "dog",
+      "count": 1
+    },
+    {
+      "actual": "dog",
+      "predicted": "dry",
+      "count": 1
+    },
+    {
+      "actual": "fall",
+      "predicted": "brother",
+      "count": 1
+    },
+    {
+      "actual": "fan",
+      "predicted": "black",
+      "count": 1
+    },
+    {
+      "actual": "girl",
+      "predicted": "boy",
+      "count": 1
+    },
+    {
+      "actual": "girl",
+      "predicted": "white",
+      "count": 1
+    },
+    {
+      "actual": "hot",
+      "predicted": "time",
+      "count": 1
+    },
+    {
+      "actual": "house",
+      "predicted": "storeorshop",
+      "count": 1
+    },
+    {
+      "actual": "i",
+      "predicted": "girl",
+      "count": 1
+    },
+    {
+      "actual": "loud",
+      "predicted": "biglarge",
+      "count": 1
+    },
+    {
+      "actual": "loud",
+      "predicted": "house",
+      "count": 1
+    },
+    {
+      "actual": "quiet",
+      "predicted": "i",
+      "count": 1
+    },
+    {
+      "actual": "red",
+      "predicted": "i",
+      "count": 1
+    }
+  ],
+  "risk_coverage_browser": [
+    {
+      "threshold": 0.3,
+      "accepted_count": 62,
+      "coverage_over_77": 0.8051948051948052,
+      "selective_accuracy": 0.6451612903225806
+    },
+    {
+      "threshold": 0.35,
+      "accepted_count": 54,
+      "coverage_over_77": 0.7012987012987013,
+      "selective_accuracy": 0.7222222222222222
+    },
+    {
+      "threshold": 0.4,
+      "accepted_count": 45,
+      "coverage_over_77": 0.5844155844155844,
+      "selective_accuracy": 0.7777777777777778
+    },
+    {
+      "threshold": 0.45,
+      "accepted_count": 35,
+      "coverage_over_77": 0.45454545454545453,
+      "selective_accuracy": 0.8285714285714286
+    },
+    {
+      "threshold": 0.5,
+      "accepted_count": 33,
+      "coverage_over_77": 0.42857142857142855,
+      "selective_accuracy": 0.8787878787878788
+    },
+    {
+      "threshold": 0.6,
+      "accepted_count": 24,
+      "coverage_over_77": 0.3116883116883117,
+      "selective_accuracy": 1.0
+    },
+    {
+      "threshold": 0.7,
+      "accepted_count": 14,
+      "coverage_over_77": 0.18181818181818182,
+      "selective_accuracy": 1.0
+    },
+    {
+      "threshold": 0.8,
+      "accepted_count": 9,
+      "coverage_over_77": 0.11688311688311688,
+      "selective_accuracy": 1.0
+    },
+    {
+      "threshold": 0.9,
+      "accepted_count": 4,
+      "coverage_over_77": 0.05194805194805195,
+      "selective_accuracy": 1.0
+    }
+  ],
+  "risk_coverage_opencv": [
+    {
+      "threshold": 0.3,
+      "accepted_count": 65,
+      "coverage_over_77": 0.8441558441558441,
+      "selective_accuracy": 0.6923076923076923
+    },
+    {
+      "threshold": 0.35,
+      "accepted_count": 54,
+      "coverage_over_77": 0.7012987012987013,
+      "selective_accuracy": 0.7407407407407407
+    },
+    {
+      "threshold": 0.4,
+      "accepted_count": 45,
+      "coverage_over_77": 0.5844155844155844,
+      "selective_accuracy": 0.8
+    },
+    {
+      "threshold": 0.45,
+      "accepted_count": 37,
+      "coverage_over_77": 0.4805194805194805,
+      "selective_accuracy": 0.8918918918918919
+    },
+    {
+      "threshold": 0.5,
+      "accepted_count": 31,
+      "coverage_over_77": 0.4025974025974026,
+      "selective_accuracy": 0.9032258064516129
+    },
+    {
+      "threshold": 0.6,
+      "accepted_count": 25,
+      "coverage_over_77": 0.3246753246753247,
+      "selective_accuracy": 0.96
+    },
+    {
+      "threshold": 0.7,
+      "accepted_count": 14,
+      "coverage_over_77": 0.18181818181818182,
+      "selective_accuracy": 1.0
+    },
+    {
+      "threshold": 0.8,
+      "accepted_count": 11,
+      "coverage_over_77": 0.14285714285714285,
+      "selective_accuracy": 1.0
+    },
+    {
+      "threshold": 0.9,
+      "accepted_count": 3,
+      "coverage_over_77": 0.03896103896103896,
+      "selective_accuracy": 1.0
+    }
+  ],
+  "provenance": {
+    "ai4bharat_commit": "df348f4a640060d4d39f02556d9f96851e8c46c7",
+    "checkpoint_sha256": "8644dc4793b8f648af5c3ad42f0c5d5eeb86950cf4cbb2e2aae6e3cc678447b4",
+    "official_validation_list_sha256": "044f56003b3af73e13bb889386cd9a424b25d74a172abcad2848fad2f1679541",
+    "mediapipe_runtime": "0.10.21 (from target Windows pip installation log)",
+    "historical_mediapipe_version": "UNVERIFIED / NOT PINNED IN UPSTREAM REQUIREMENTS",
+    "iot_enabled": false,
+    "test_split_used": false
+  }
+}

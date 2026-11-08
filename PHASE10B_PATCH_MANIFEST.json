@@ -1,0 +1,62 @@
+{
+  "patch": "PHASE10B_Verified_Browser_Lifecycle_Patch",
+  "schema_version": 1,
+  "files": [
+    {
+      "path": "scripts/browser_validation_capture_phase10b.html",
+      "sha256": "3a6cb4378cba71a58d5d22517874ced0c31b83a440bd25de096829fa00ed8136",
+      "bytes": 50423
+    },
+    {
+      "path": "scripts/serve_phase10b_capture.py",
+      "sha256": "de3dbdbe9f589bd2d3581fa440dcdd51803b3717befc1eb44f53d83423986a4a",
+      "bytes": 9912
+    },
+    {
+      "path": "scripts/phase10b_browser_lifecycle_analysis.py",
+      "sha256": "55a5a445426d5b5413ab5976c773dcc02de3a462936a134eb6125027d74cffb7",
+      "bytes": 34748
+    },
+    {
+      "path": "scripts/phase10b_browser_lifecycle_orchestrator.py",
+      "sha256": "0e55078f4ca3ddf9674c5ad9b3c15a6cf040411e9b6340e11a43dff808944c10",
+      "bytes": 20674
+    },
+    {
+      "path": "scripts/verify_phase10b_bundle.py",
+      "sha256": "cb5ac5b14ec70ad00d57e6266cf13e377fc830d00b16d19bb980bde614016c35",
+      "bytes": 5877
+    },
+    {
+      "path": "scripts/run_phase10b_browser_lifecycle.ps1",
+      "sha256": "38b733592ba6f4b3e230e9d02c21888869f60ea11ea321f6a63a4d07f1dd5298",
+      "bytes": 1224
+    },
+    {
+      "path": "tests/test_phase10b_browser_lifecycle.py",
+      "sha256": "d2cee7b413534e0f18a53b8d2f16dba0ad869e15538a69d68d06ab363bbd8200",
+      "bytes": 11080
+    },
+    {
+      "path": "PHASE10B_README.md",
+      "sha256": "270b31bd05ac2a474d4443d4e66ea8b50df880996a96c920cf7b30b36fae6cf1",
+      "bytes": 5746
+    },
+    {
+      "path": "engineering/PHASE10B_EXECUTION_CONTRACT.md",
+      "sha256": "272d858def610e4e863143b4c4cf9e4b4ad170aba8603871ad19160240e92f5f",
+      "bytes": 3065
+    }
+  ],
+  "build_validation": {
+    "integrated_pytest": "291 passed, 1 skipped",
+    "phase10b_focused_pytest": "20 passed",
+    "browser_javascript": "node --check passed",
+    "python_compilation": "passed",
+    "orchestrator_cli": "passed",
+    "analyzer_cli": "passed",
+    "receiver_cli": "passed",
+    "bundle_verifier_smoke": "ZIP_TEST=OK | INTERNAL_SHA256=41/41 | INDEXES=4/4 | CLIPS=24/24",
+    "windows_powershell_runtime": "not executed in build environment"
+  }
+}

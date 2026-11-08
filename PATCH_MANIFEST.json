@@ -1,0 +1,35 @@
+{
+  "patch_name": "ISL Phase 10B Hidden Return Lifecycle Fix v3",
+  "patch_version": "3.0.0",
+  "date": "2026-11-08",
+  "purpose": "Keep hidden-background lifecycle observation active until visible return and require a complete, uncensored >=1500 ms hidden interval that began during playback.",
+  "files": [
+    "scripts/browser_validation_capture_phase10b.html",
+    "scripts/phase10b_browser_lifecycle_analysis.py",
+    "scripts/phase10b_browser_lifecycle_orchestrator.py",
+    "scripts/serve_phase10b_capture.py",
+    "scripts/run_phase10b_browser_lifecycle.ps1",
+    "tests/test_phase10b_browser_lifecycle.py"
+  ],
+  "thresholds_ms": {
+    "hidden_background": 1500,
+    "visible_unfocused": 1500,
+    "focus_recovery": 500
+  },
+  "hidden_return_timeout_ms": 10000,
+  "safety": {
+    "iot_enabled": false,
+    "classifier_checkpoint_loaded": false,
+    "production_code_modified": false
+  },
+  "validation": {
+    "focused_tests_passed": 44,
+    "python_compile": "passed",
+    "node_check": "passed"
+  },
+  "notes": [
+    "Old hidden_background 3/6 captures are not reusable under the new closed-interval rule.",
+    "A complete visible_unfocused pass may be reused because its condition semantics are unchanged.",
+    "The previous foreground_focused 6/6 pass remains reusable."
+  ]
+}

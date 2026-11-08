@@ -1,0 +1,15 @@
+{
+  "patch": "PHASE4_POWERSHELL_STDERR_HOTFIX",
+  "files": [
+    {
+      "path": "scripts/run_phase4_controlled_replay.ps1",
+      "sha256": "111f40d50669811ae25735016a9f38b6a79b4d977f5505f8d642999f1de22e73",
+      "bytes": 7497
+    },
+    {
+      "path": "PHASE4_POWERSHELL_STDERR_HOTFIX.md",
+      "sha256": "bcab07dd854c64c3711a397ede0bda678410e4c0b950f8054dff5bf454c6576a",
+      "bytes": 1158
+    }
+  ]
+}

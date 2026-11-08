@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISL Browser Canvas Resolution Sweep</title>
+<style>
+  :root { color-scheme: light; font-family: Segoe UI, Arial, sans-serif; color: #172033; background: #f4f6fa; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; }
+  main { max-width: 1120px; margin: 0 auto; }
+  h1 { margin: 0 0 8px; font-size: 26px; }
+  h2 { margin: 0 0 12px; font-size: 18px; }
+  p { line-height: 1.5; }
+  .muted { color: #5e687b; }
+  .panel { background: white; border: 1px solid #dce2ec; border-radius: 12px; padding: 18px; margin: 16px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  .option { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border: 1px solid #dce2ec; border-radius: 9px; }
+  input[type=file], select { max-width: 100%; padding: 8px; }
+  button { border: 0; border-radius: 8px; padding: 11px 15px; background: #174ea6; color: white; font-weight: 600; cursor: pointer; }
+  button.secondary { background: #e9eef8; color: #172033; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .status { padding: 11px 13px; background: #f1f4f9; border-radius: 8px; white-space: pre-wrap; }
+  .status.error { background: #fff0ef; color: #9d211a; }
+  .status.good { background: #edf8f0; color: #14532d; }
+  video { width: min(100%, 520px); max-height: 300px; background: #101827; border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px; border-bottom: 1px solid #e6eaf1; text-align: left; vertical-align: top; }
+  th { background: #f5f7fb; position: sticky; top: 0; }
+  .table-wrap { overflow: auto; max-height: 430px; }
+  code { background: #f1f3f7; padding: 2px 5px; border-radius: 4px; }
+  .small { font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ISL Browser-Native Canvas Resolution Sweep</h1>
+  <p class="muted">Diagnostic-only page. It replays the selected INCLUDE-50 pilot videos in this browser, applies the actual HTML video → Canvas → JPEG path, and submits each variant to your local FastAPI recognizer.</p>
+
+  <section class="panel">
+    <h2>1. Select the reference-video folder</h2>
+    <p>Choose <code>C:\AIAssets\INCLUDE_videos</code>. The page automatically finds the eight pilot clips by filename; it does not upload files to an external service.</p>
+    <input id="folderInput" type="file" webkitdirectory directory multiple accept="video/*,.mov,.mp4,.avi,.m4v,.webm">
+    <p id="fileStatus" class="status">No folder selected yet.</p>
+  </section>
+
+  <section class="panel">
+    <h2>2. Choose the capture configurations</h2>
+    <p class="muted">First pass: keep JPEG quality fixed at 72 and vary only the canvas width. Do not change the application code.</p>
+    <div class="grid">
+      <label class="option"><input type="checkbox" class="widthChoice" value="640" checked> 640 px (current app)</label>
+      <label class="option"><input type="checkbox" class="widthChoice" value="960" checked> 960 px</label>
+      <label class="option"><input type="checkbox" class="widthChoice" value="1280" checked> 1280 px</label>
+      <label class="option"><input type="checkbox" class="widthChoice" value="1920" checked> 1920 px (cap; no upscaling)</label>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <label for="quality"><strong>JPEG quality</strong></label>
+      <select id="quality">
+        <option value="72" selected>72 (current app)</option>
+        <option value="92">92 (follow-up comparison only)</option>
+      </select>
+      <span class="small muted">Run the first sweep at 72. After selecting a winning width, run 92 at that width only.</span>
+    </div>
+    <div class="actions">
+      <button id="connectButton" class="secondary">Connect to local app</button>
+      <button id="runButton" disabled>Run browser-native sweep</button>
+      <button id="downloadButton" class="secondary" disabled>Download results JSON</button>
+    </div>
+    <p id="connectionStatus" class="status">Not connected to the local recognizer.</p>
+  </section>
+
+  <section class="panel">
+    <h2>3. Live run status</h2>
+    <p id="runStatus" class="status">Waiting for the sweep to start.</p>
+    <video id="preview" muted playsinline controls></video>
+    <p class="small muted">The page sends the selected video frames to <code>/ws/capture</code>. It sets <code>diagnostic_mode=true</code> for every run, suppressing IoT commands. Run this page only while your local ISL app is idle; the app permits one capture at a time.</p>
+  </section>
+
+  <section class="panel">
+    <h2>4. Results</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Clip</th><th>Expected</th><th>Width</th><th>Frames</th><th>Prediction</th><th>Confidence</th><th>Pose</th><th>Hand</th><th>Matches native baseline</th><th>Correct label</th><th>Status</th></tr></thead>
+        <tbody id="resultsBody"><tr><td colspan="11" class="muted">No results yet.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+(() => {
+  'use strict';
+  const PILOTS = [
+    {name:'MVI_5063', expected:'white', native:'red', kind:'error'},
+    {name:'MVI_3532', expected:'court', native:'bank', kind:'error'},
+    {name:'MVI_5394', expected:'cellphone', native:'hello', kind:'error'},
+    {name:'MVI_5125', expected:'biglarge', native:'smalllittle', kind:'error'},
+    {name:'MVI_9534', expected:'loud', native:'bird', kind:'error'},
+    {name:'MVI_9396', expected:'biglarge', native:'happy', kind:'control'},
+    {name:'MVI_3284', expected:'court', native:'court', kind:'control'},
+    {name:'MVI_3744', expected:'white', native:'white', kind:'control'}
+  ];
+  const $ = (id) => document.getElementById(id);
+  const folderInput = $('folderInput');
+  const connectButton = $('connectButton');
+  const runButton = $('runButton');
+  const downloadButton = $('downloadButton');
+  const connectionStatus = $('connectionStatus');
+  const runStatus = $('runStatus');
+  const resultsBody = $('resultsBody');
+  const video = $('preview');
+  let ws = null;
+  let selectedFiles = [];
+  let results = [];
+  let busy = false;
+  let socketQueue = [];
+  let socketWaiters = [];
+  let objectUrl = null;
+
+  function setStatus(el, text, kind='') {
+    el.textContent = text;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+  function log(text) {
+    const current = runStatus.textContent;
+    setStatus(runStatus, current === 'Waiting for the sweep to start.' ? text : current + '\n' + text);
+  }
+  function basenameStem(name) {
+    return String(name).split(/[\\/]/).pop().replace(/\.[^.]+$/, '').toLowerCase();
+  }
+  function scanFiles(files) {
+    const all = Array.from(files || []);
+    const byStem = new Map();
+    for (const file of all) {
+      const stem = basenameStem(file.name);
+      if (PILOTS.some(p => p.name.toLowerCase() === stem)) {
+        if (!byStem.has(stem)) byStem.set(stem, []);
+        byStem.get(stem).push(file);
+      }
+    }
+    selectedFiles = [];
+    const duplicates = [];
+    const missing = [];
+    for (const pilot of PILOTS) {
+      const matches = byStem.get(pilot.name.toLowerCase()) || [];
+      if (!matches.length) missing.push(pilot.name);
+      else if (matches.length > 1) duplicates.push(pilot.name + ' (' + matches.length + ' copies)');
+      else selectedFiles.push({pilot, file:matches[0]});
+    }
+    const lines = [`Found ${selectedFiles.length}/8 required pilot clips.`];
+    if (missing.length) lines.push('Missing: ' + missing.join(', '));
+    if (duplicates.length) lines.push('Ambiguous duplicates: ' + duplicates.join(', '));
+    if (selectedFiles.length === 8 && !duplicates.length) {
+      setStatus($('fileStatus'), lines.join('\n'), 'good');
+    } else {
+      setStatus($('fileStatus'), lines.join('\n'), 'error');
+    }
+    runButton.disabled = selectedFiles.length !== 8 || duplicates.length > 0 || !ws || ws.readyState !== WebSocket.OPEN || busy;
+  }
+  folderInput.addEventListener('change', () => scanFiles(folderInput.files));
+
+  function receiveMessage(message) {
+    if (message.type === 'progress' || message.type === 'processing_progress') return;
+    for (let i = 0; i < socketWaiters.length; i++) {
+      const waiter = socketWaiters[i];
+      if (waiter.predicate(message)) {
+        socketWaiters.splice(i, 1);
+        clearTimeout(waiter.timer);
+        waiter.resolve(message);
+        return;
+      }
+    }
+    socketQueue.push(message);
+  }
+  function waitForMessage(predicate, timeoutMs=30000) {
+    const index = socketQueue.findIndex(predicate);
+    if (index >= 0) return Promise.resolve(socketQueue.splice(index, 1)[0]);
+    return new Promise((resolve, reject) => {
+      const waiter = {predicate, resolve, reject, timer:null};
+      waiter.timer = setTimeout(() => {
+        socketWaiters = socketWaiters.filter(x => x !== waiter);
+        reject(new Error('Timed out waiting for local backend response.'));
+      }, timeoutMs);
+      socketWaiters.push(waiter);
+    });
+  }
+  async function connect() {
+    if (ws && ws.readyState === WebSocket.OPEN) return;
+    connectButton.disabled = true;
+    setStatus(connectionStatus, 'Connecting to local recognizer…');
+    const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${scheme}//${location.host}/ws/capture`);
+    ws.addEventListener('message', event => {
+      let message;
+      try { message = JSON.parse(event.data); } catch { return; }
+      receiveMessage(message);
+    });
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('WebSocket connection timed out.')), 10000);
+      ws.addEventListener('open', () => { clearTimeout(timeout); resolve(); }, {once:true});
+      ws.addEventListener('error', () => { clearTimeout(timeout); reject(new Error('Could not connect. Is the ISL app running at this address?')); }, {once:true});
+    });
+    const hello = await waitForMessage(m => m.type === 'connected' || m.type === 'error', 10000);
+    if (hello.type !== 'connected') throw new Error(hello.message || 'Backend connection rejected.');
+    if (!hello.model_ready || !hello.extractor_ready) {
+      throw new Error(`Backend not ready. model_ready=${hello.model_ready}; extractor_ready=${hello.extractor_ready}. ${hello.model_error || hello.extractor_error || ''}`);
+    }
+    setStatus(connectionStatus, 'Connected. Model and MediaPipe extractor are ready. IoT remains suppressed for every diagnostic capture.', 'good');
+    connectButton.textContent = 'Connected';
+    connectButton.disabled = true;
+    runButton.disabled = selectedFiles.length !== 8 || busy;
+  }
+  connectButton.addEventListener('click', async () => {
+    try { await connect(); }
+    catch (error) { setStatus(connectionStatus, error.message, 'error'); connectButton.disabled = false; }
+  });
+
+  function waitForEvent(target, eventName, timeoutMs=12000, readyCheck=null) {
+    if (readyCheck && readyCheck()) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        clearTimeout(timer);
+        target.removeEventListener(eventName, done);
+        target.removeEventListener('error', failed);
+      };
+      const done = () => { cleanup(); resolve(); };
+      const failed = () => { cleanup(); reject(new Error('Media element error while waiting for ' + eventName + '.')); };
+      const timer = setTimeout(() => { cleanup(); reject(new Error('Timed out waiting for video ' + eventName + '.')); }, timeoutMs);
+      target.addEventListener(eventName, done, {once:true});
+      target.addEventListener('error', failed, {once:true});
+      if (readyCheck && readyCheck()) done();
+    });
+  }
+  async function loadVideoFile(file) {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    const metadata = waitForEvent(video, 'loadedmetadata', 20000,
+      () => video.readyState >= 1 && video.videoWidth >= 2 && video.videoHeight >= 2);
+    objectUrl = URL.createObjectURL(file);
+    video.src = objectUrl;
+    video.load();
+    await metadata;
+    if (!Number.isFinite(video.duration) || video.videoWidth < 2 || video.videoHeight < 2) {
+      throw new Error('Invalid video metadata for ' + file.name +
+        ` (readyState=${video.readyState}, dimensions=${video.videoWidth}x${video.videoHeight}).`);
+    }
+    await waitForEvent(video, 'loadeddata', 12000, () => video.readyState >= 2);
+  }
+  async function seekVideoToStart() {
+    video.pause();
+    if (video.currentTime > 0.01) {
+      const seeked = waitForEvent(video, 'seeked', 10000, () => Math.abs(video.currentTime) <= 0.01);
+      video.currentTime = 0;
+      await seeked;
+    }
+    await waitForEvent(video, 'loadeddata', 10000, () => video.readyState >= 2);
+    // Confirm the media clock is at the beginning before attempting to play.
+    if (video.currentTime > 0.05) throw new Error('Could not rewind video to its first frame.');
+  }
+  async function waitForDrain() {
+    const deadline = Date.now() + 3000;
+    while (ws.bufferedAmount > 1_200_000 && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 15));
+    }
+    if (ws.bufferedAmount > 2_000_000) throw new Error('Browser WebSocket send buffer grew too large; aborting this capture.');
+  }
+  async function playAndSendFrames(targetWidth, quality) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', {alpha:false});
+    if (!ctx) throw new Error('Canvas 2D context is unavailable.');
+    let sent = 0;
+    let actualCanvasWidth = null;
+    let actualCanvasHeight = null;
+    let lastCaptureWall = -Infinity;
+    let lastCaptureMedia = -Infinity;
+    let lastTimestamp = 0;
+    let lastObservedMedia = video.currentTime;
+    let lastMediaAdvanceWall = performance.now();
+    const sourceWidth = video.videoWidth;
+    const sourceHeight = video.videoHeight;
+    const startMedia = video.currentTime;
+    const maxDuration = Math.min(Number.isFinite(video.duration) ? video.duration : 5.65, 5.65);
+    const maxWallMs = Math.max(9000, maxDuration * 2500);
+    const maxFrames = 169;
+
+    // Start playback only after loadeddata and a confirmed rewind.
+    await video.play();
+    if (video.readyState < 2 || video.videoWidth < 2) {
+      await waitForEvent(video, 'playing', 5000, () => !video.paused && video.readyState >= 2);
+    }
+
+    return await new Promise((resolve, reject) => {
+      const startedAt = performance.now();
+      let rafId = null;
+      let stopped = false;
+      const finish = (reason='') => {
+        if (stopped) return;
+        stopped = true;
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        video.pause();
+        resolve({frames:sent, sourceWidth, sourceHeight,
+          targetWidth:actualCanvasWidth, targetHeight:actualCanvasHeight,
+          sampledFps: sent > 1 && lastCaptureMedia > startMedia ?
+            (sent - 1) / (lastCaptureMedia - startMedia) : null,
+          captureError:reason});
+      };
+      const fail = error => {
+        if (stopped) return;
+        stopped = true;
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        video.pause();
+        reject(error);
+      };
+      const tick = async (now) => {
+        if (stopped) return;
+        try {
+          if (video.error) throw new Error('Video decode error: ' + (video.error.message || video.error.code));
+          if (video.ended || video.currentTime >= startMedia + maxDuration || sent >= maxFrames) {
+            finish(); return;
+          }
+          if (!video.paused && video.readyState >= 2 && video.videoWidth >= 2 && video.videoHeight >= 2) {
+            const mediaTime = video.currentTime;
+            if (mediaTime > lastObservedMedia + 0.0005) {
+              lastObservedMedia = mediaTime;
+              lastMediaAdvanceWall = now;
+            }
+            // Sample at ~25 fps by wall clock, but never duplicate the same decoded media time.
+            if ((sent === 0 || now - lastCaptureWall >= 39) && mediaTime > lastCaptureMedia + 0.0005) {
+              await waitForDrain();
+              const outWidth = Math.min(targetWidth, video.videoWidth); // never upscale
+              const outHeight = Math.max(1, Math.round(outWidth * video.videoHeight / video.videoWidth));
+              canvas.width = outWidth;
+              canvas.height = outHeight;
+              ctx.drawImage(video, 0, 0, outWidth, outHeight);
+              const dataUrl = canvas.toDataURL('image/jpeg', quality / 100);
+              let timestamp = Date.now() / 1000;
+              if (timestamp <= lastTimestamp) timestamp = lastTimestamp + 0.001;
+              lastTimestamp = timestamp;
+              if (ws.readyState !== WebSocket.OPEN) throw new Error('WebSocket disconnected during frame submission.');
+              ws.send(JSON.stringify({type:'frame', timestamp, jpeg_b64:dataUrl}));
+              sent += 1;
+              actualCanvasWidth = outWidth;
+              actualCanvasHeight = outHeight;
+              lastCaptureWall = now;
+              lastCaptureMedia = mediaTime;
+            }
+          }
+          if (now - startedAt > maxWallMs) {
+            finish('Capture stopped by wall-clock safety timeout.'); return;
+          }
+          if (now - lastMediaAdvanceWall > 1800 && now - startedAt > 500) {
+            finish('Video media clock stopped advancing; no further frames were captured.'); return;
+          }
+          rafId = requestAnimationFrame(tick);
+        } catch (error) { fail(error); }
+      };
+      rafId = requestAnimationFrame(tick);
+    });
+  }
+  async function runOne(file, pilot, width, quality) {
+    const label = `${pilot.name} / ${width}px / q${quality}`;
+    setStatus(runStatus, `Running ${label}…`);
+    await seekVideoToStart();
+    ws.send(JSON.stringify({type:'start'}));
+    const started = await waitForMessage(m => m.type === 'capture_started' || m.type === 'error', 15000);
+    if (started.type !== 'capture_started') throw new Error(started.message || started.code || 'Capture start rejected.');
+    const frameInfo = await playAndSendFrames(width, quality);
+    ws.send(JSON.stringify({type:'stop', client_frames_dropped:0, diagnostic_mode:true}));
+    const message = await waitForMessage(m => m.type === 'result' || m.type === 'error', 120000);
+    if (message.type !== 'result') throw new Error(message.message || message.code || 'Capture failed.');
+    const r = message.result || {};
+    const row = {
+      case_type:pilot.kind, clip:pilot.name, filename:file.name, expected_label:pilot.expected,
+      native_direct_baseline_top1:pilot.native, canvas_width_preset:width,
+      actual_canvas_width:frameInfo.targetWidth, actual_canvas_height:frameInfo.targetHeight,
+      source_width:frameInfo.sourceWidth, source_height:frameInfo.sourceHeight,
+      jpeg_quality:quality, browser_api:'HTMLVideoElement + requestVideoFrameCallback + Canvas drawImage + canvas.toDataURL',
+      frames_submitted:frameInfo.frames, backend_received_frames:r.received_frames ?? null,
+      extracted_frames:r.frame_count ?? null, predicted_label:r.predicted_label ?? null,
+      confidence:r.confidence ?? null, outcome:r.outcome ?? r.status ?? null,
+      matches_native_direct_prediction:(r.predicted_label ?? null) === pilot.native,
+      correct_against_expected:(r.predicted_label ?? null) === pilot.expected,
+      top5_predictions:r.top5_predictions ?? [], pose_ratio:r.pose_ratio ?? null,
+      hand_ratio:r.hand_ratio ?? null, hand1_ratio:r.hand1_ratio ?? null,
+      hand2_ratio:r.hand2_ratio ?? null, both_hand_ratio:r.both_hand_ratio ?? null,
+      effective_fps:r.effective_fps ?? null, mediapipe_median_latency_ms:r.mediapipe_median_latency_ms ?? null,
+      end_to_end_latency_ms:r.end_to_end_latency_ms ?? null,
+      frame_sampling_fps:frameInfo.sampledFps, capture_error:frameInfo.captureError || null, reason:r.reason ?? null,
+      diagnostic_mode:true, iot_action_expected:'suppressed'
+    };
+    results.push(row);
+    renderResults();
+    await new Promise(resolve => setTimeout(resolve, 350)); // allow backend capture lock to release after result send
+    return row;
+  }
+  function renderResults() {
+    if (!results.length) return;
+    resultsBody.innerHTML = results.map(row => {
+      const esc = x => String(x ?? '—').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      return `<tr><td>${esc(row.clip)}</td><td>${esc(row.expected_label)}</td><td>${esc(row.actual_canvas_width)} × ${esc(row.actual_canvas_height)}</td><td>${esc(row.backend_received_frames ?? row.frames_submitted)}</td><td><strong>${esc(row.predicted_label)}</strong></td><td>${row.confidence == null ? '—' : (row.confidence*100).toFixed(1)+'%'}</td><td>${row.pose_ratio == null ? '—' : (row.pose_ratio*100).toFixed(0)+'%'}</td><td>${row.hand_ratio == null ? '—' : (row.hand_ratio*100).toFixed(0)+'%'}</td><td>${row.matches_native_direct_prediction ? 'Yes' : 'No'}</td><td>${row.correct_against_expected ? 'Yes' : 'No'}</td><td>${esc(row.outcome)}</td></tr>`;
+    }).join('');
+    downloadButton.disabled = false;
+  }
+  async function runSweep() {
+    if (busy) return;
+    const widths = Array.from(document.querySelectorAll('.widthChoice:checked')).map(x => Number(x.value));
+    const quality = Number($('quality').value);
+    if (!widths.length) { setStatus(runStatus, 'Select at least one canvas width.', 'error'); return; }
+    if (selectedFiles.length !== 8) { setStatus(runStatus, 'The folder must contain all eight known pilot clips.', 'error'); return; }
+    busy = true; runButton.disabled = true; connectButton.disabled = true;
+    results = []; renderResults();
+    setStatus(runStatus, `Starting ${selectedFiles.length * widths.length} browser-native captures. Keep this tab open and do not use the main capture screen during the run.`);
+    try {
+      for (const item of selectedFiles) {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        await loadVideoFile(item.file);
+        for (const width of widths) {
+          const row = await runOne(item.file, item.pilot, width, quality);
+          setStatus(runStatus, `Completed ${results.length}/${selectedFiles.length * widths.length}: ${row.clip} at ${width}px, q${quality} → ${row.predicted_label || row.outcome}.`);
+        }
+      }
+      const nativeMatches = results.filter(x => x.matches_native_direct_prediction).length;
+      const expectedCorrect = results.filter(x => x.correct_against_expected).length;
+      const invalid = results.filter(x => !x.frames_submitted || x.outcome === 'invalid_capture').length;
+      setStatus(runStatus, `Sweep complete: ${results.length} captures; ${invalid} invalid/zero-frame runs. ${nativeMatches}/${results.length} match the original-resolution direct-path predictions; ${expectedCorrect}/${results.length} match expected labels. Download the JSON and send it for analysis.`, invalid ? '' : 'good');
+    } catch (error) {
+      setStatus(runStatus, 'Sweep stopped: ' + (error && error.message ? error.message : String(error)) + '\nDownload the partial JSON and send it for diagnosis.', 'error');
+    } finally {
+      busy = false;
+      runButton.disabled = selectedFiles.length !== 8 || !ws || ws.readyState !== WebSocket.OPEN;
+      connectButton.disabled = Boolean(ws && ws.readyState === WebSocket.OPEN);
+      if (results.length) downloadButton.disabled = false;
+    }
+  }
+  runButton.addEventListener('click', runSweep);
+  downloadButton.addEventListener('click', () => {
+    const payload = {
+      diagnostic_type:'browser_native_canvas_resolution_sweep_v2',
+      capture_loop:'requestAnimationFrame sampling based on video.currentTime and wall-clock cadence; explicit readyState/seek checks',
+      created_at:new Date().toISOString(),
+      browser:navigator.userAgent,
+      origin:location.origin,
+      jpeg_quality:Number($('quality').value),
+      selected_width_presets:Array.from(document.querySelectorAll('.widthChoice:checked')).map(x=>Number(x.value)),
+      browser_capture_sampling:'requestVideoFrameCallback throttled to >=39 ms (nominal 25 fps); fallback requestAnimationFrame',
+      direct_path_baselines:'From the verified eight-case App Direct Native vs. adapted upstream diagnostic report.',
+      io_policy:'diagnostic_mode=true for every capture; hardware action suppressed',
+      results
+    };
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = 'browser_native_canvas_sweep_results.json';
+    document.body.appendChild(anchor); anchor.click(); anchor.remove();
+    URL.revokeObjectURL(url);
+  });
+})();
+</script>
+</body>
+</html>

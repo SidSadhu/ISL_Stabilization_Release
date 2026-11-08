@@ -1,0 +1,3 @@
+# Use Python 3.12 on Windows; these pins reflect the existing project environment.
+mediapipe==0.10.21
+opencv-python==4.11.0.86

@@ -1,0 +1,5 @@
+pytest>=8,<9
+
+# Starlette's TestClient imports the legacy `httpx` package (module: httpx).
+# `httpx2` is a separate client library and does not satisfy that import.
+httpx>=0.27,<1

@@ -1,0 +1,12 @@
+{
+  "patch": "PHASE10B_ISLBRW01_PROTOCOL_COMPATIBILITY_FIX",
+  "schema_version": 1,
+  "purpose": "Restore required ISLBRW01 capture metadata without reintroducing the 39 ms acceptance gate.",
+  "files": {
+    "scripts/browser_validation_capture_phase10b.html": "e4037705e961a3a708999a7a68721b05572743c2df266c859272b2e3f99dbece",
+    "scripts/serve_phase10b_capture.py": "30609f196d430c495a808d332cf1674b931516c535b91be2a4d5e9c33e4f87ca",
+    "tests/test_phase10b_browser_lifecycle.py": "b3de137a6b3348f379d4de7c4d214807821b1932f231c11fbbc5750eb0cf4245",
+    "PHASE10B_PROTOCOL_COMPATIBILITY_FIX.md": "56a4a04fb97efbadeacf769b76ed1bd50d8fbd2dbd63cf124fc5fc2b1d53919d"
+  },
+  "excluded_from_self_hash": true
+}

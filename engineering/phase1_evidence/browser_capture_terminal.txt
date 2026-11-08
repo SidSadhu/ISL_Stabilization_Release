@@ -1,0 +1,129 @@
+IoT: DISABLED — this page contains no IoT command code or application endpoint calls.
+[4:53:22 pm] Pinned 77-item validation manifest loaded.
+[4:53:43 pm] Capturing 15/77: Adjectives/2. quiet/MVI_9537.MOV
+[4:53:46 pm] Saved quiet: 67 frames, SHA256 ebe8a1f7872c56d865eeb194332d1cc6f06c2152d1b11a9c94274cfcac17090c
+[4:53:46 pm] Capturing 16/77: Greetings/51. Good Morning/MVI_0044.MOV
+[4:53:50 pm] Saved goodmorning: 85 frames, SHA256 b667b93d5c10faacaca395bd1b297359d654108f837b71c5e7444e416a0a716d
+[4:53:50 pm] Capturing 17/77: Electronics/54. Cell phone/MVI_5394.MOV
+[4:53:52 pm] Saved cellphone: 60 frames, SHA256 6ae3a4bfab237f799725905efb4b7749f473264d77cec28b1d1f850ac05c51d2
+[4:53:52 pm] Capturing 18/77: Adjectives/94. good/MVI_5159.MOV
+[4:53:55 pm] Saved good: 63 frames, SHA256 3604947fd6d85e09512b4d710c74f4d56451581da22c9f3b35a43269b201e75e
+[4:53:55 pm] Capturing 19/77: Days_and_Time/67. Monday/MVI_5448.MOV
+[4:53:57 pm] Saved monday: 55 frames, SHA256 2591135a3ecadd883877710bac7690b3abe092c7b874f2e9d158f98c496fbfe3
+[4:53:57 pm] Capturing 20/77: Animals/1. Dog/MVI_8561.MOV
+[4:54:00 pm] Saved dog: 68 frames, SHA256 68479cb37c406d5f47ebeac55f1f1c04bd3679f919e8cef7f80d0d12e06c3187
+[4:54:00 pm] Capturing 21/77: Seasons/61. Summer/MVI_5422.MOV
+[4:54:03 pm] Saved summer: 58 frames, SHA256 4758b7cd954db1e68326f966620f397ae70523d41987d7d95d8a7e2428364577
+[4:54:03 pm] Capturing 22/77: Jobs/91. Priest/MVI_8888.MOV
+[4:54:06 pm] Saved priest: 64 frames, SHA256 7e2cc4e859b23b81db74c1d485e774d19490b00d2d8ef8ee65cf38a9903b741f
+[4:54:06 pm] Capturing 23/77: Colours/47. Red/MVI_3866.MOV
+[4:54:09 pm] Saved red: 75 frames, SHA256 37a879213ea137a15e7afa03f5ea614cb49d19bcec974180c5384b974b225a08
+[4:54:09 pm] Capturing 24/77: Places/19. House/MVI_3514.MOV
+[4:54:11 pm] Saved house: 48 frames, SHA256 15ebe0a9803f05ec3442c3eccca6cd8e709ba37237739a632d4b451648923f10
+[4:54:11 pm] Capturing 25/77: Places/19. House/MVI_3269.MOV
+[4:54:13 pm] Saved house: 60 frames, SHA256 4727e3159c3f4dbf5223556e5fc2a786372d977a2663793402b03b1b0e053646
+[4:54:13 pm] Capturing 26/77: Adjectives/1. loud/MVI_9534.MOV
+[4:54:16 pm] Saved loud: 56 frames, SHA256 116eca98302573839a7d4ad75bd3280b6bca173b44341cc5585a3146b43be989
+[4:54:16 pm] Capturing 27/77: Clothes/44. Shoes/MVI_3856.MOV
+[4:54:19 pm] Saved shoes: 83 frames, SHA256 08e538dca989641eb4f530092eaa4a467368c19a55013fd981fdb7160028f103
+[4:54:19 pm] Capturing 28/77: Adjectives/83. big large/MVI_5125.MOV
+[4:54:23 pm] Saved biglarge: 71 frames, SHA256 8574e2a15d1cc57b6bf4b8ea59ff6afee70d75b55268556504b31352bc66e12a
+[4:54:23 pm] Capturing 29/77: Colours/55. White/MVI_5063.MOV
+[4:54:25 pm] Saved white: 51 frames, SHA256 11a3eaec063b7a2cd479ab94a7d27b2a56e7716d0c2bd0a61544d68701a10a77
+[4:54:25 pm] Capturing 30/77: People/78. Girl/MVI_4115.MOV
+[4:54:29 pm] Saved girl: 92 frames, SHA256 d2b25f1707d9e576fe14a3671260f8cf26853f8201ef022e1eb40e2979a519fe
+[4:54:29 pm] Capturing 31/77: Colours/55. White/MVI_3744.MOV
+[4:54:31 pm] Saved white: 46 frames, SHA256 5d09dcaac582738613b92a7f6a0c064e2730be52b5ad495886d6647ec220997b
+[4:54:31 pm] Capturing 32/77: Adjectives/91. new/MVI_9423.MOV
+[4:54:33 pm] Saved new: 49 frames, SHA256 7c80db504c71c1a545156468a0b664b2e2ba28ada309db5051b5c7174d464991
+[4:54:33 pm] Capturing 33/77: Clothes/44. Shoes/MVI_4008.MOV
+[4:54:36 pm] Saved shoes: 76 frames, SHA256 a5a36c18680247f8091913b43cd1f233071b2d613959c0f3feec9db76cabf6ef
+[4:54:36 pm] Capturing 34/77: Greetings/48. Hello/MVI_0039.MOV
+[4:54:38 pm] Saved hello: 51 frames, SHA256 80643b848ac5bddfd5a5081cd1672f895c1d9a90c535d81e3dfeab1489ddcce7
+[4:54:38 pm] Capturing 35/77: People/66. Brother/MVI_3778.MOV
+[4:54:41 pm] Saved brother: 59 frames, SHA256 081b4eba472abda295a4e7eb50c6cdcde58009d6f50781ba037c38806eaf630e
+[4:54:41 pm] Capturing 36/77: Places/35. Bank/MVI_3661.MOV
+[4:54:43 pm] Saved bank: 44 frames, SHA256 68a96c6ad100c14de4f33f15b71ee6e487c43b8b13d9c8f1c66d980223b5b66e
+[4:54:43 pm] Capturing 37/77: Adjectives/84. small little/MVI_5208.MOV
+[4:54:45 pm] Saved smalllittle: 58 frames, SHA256 db6a5cb8f6fcd5892e6133f69955c2833696a18c3b5afa9033694f2786c4271d
+[4:54:45 pm] Capturing 38/77: Adjectives/2. quiet/MVI_5340.MOV
+[4:54:48 pm] Saved quiet: 53 frames, SHA256 4f93bb5b93a11ecec4bc1cec4b2a09b5a503380cf0a31ba24cb65586a3a66eea
+[4:54:48 pm] Capturing 39/77: Clothes/42. T-Shirt/MVI_5023.MOV
+[4:54:51 pm] Saved tshirt: 78 frames, SHA256 98e408e4175e2dc0621bbd24427437da7f113e751e971f0d5fff4c8af1fdee51
+[4:54:51 pm] Capturing 40/77: Means_of_Transportation/16. train ticket/MVI_4192.MOV
+[4:54:54 pm] Saved trainticket: 79 frames, SHA256 b173e240334d7d7e783de11a5a486c4a04ff2ebe1279f839517520f4bc821272
+[4:54:54 pm] Capturing 41/77: Adjectives/97. dry/MVI_9361.MOV
+[4:54:57 pm] Saved dry: 54 frames, SHA256 319e3afb6c8f89b0907f5119287b80a06d8dc3ec497fa0c59c928f7ca6d37ae9
+[4:54:57 pm] Capturing 42/77: People/77. Boy/MVI_3962.MOV
+[4:55:00 pm] Saved boy: 72 frames, SHA256 3f1a7e2f76a3ba7e04fb089d0dbbe9f1513feb3e5d8b3d4670a58ade71b7a18c
+[4:55:00 pm] Capturing 43/77: Places/28. Store or Shop/MVI_3633.MOV
+[4:55:02 pm] Saved storeorshop: 49 frames, SHA256 a78a6486c3c378005f6fb422c3d64159a0fd48fa886a48c2556eddfee974deac
+[4:55:02 pm] Capturing 44/77: Pronouns/40. I/MVI_0003.MOV
+[4:55:04 pm] Saved i: 53 frames, SHA256 46634fd40c30bb37e7aa73d95ce706c854a411e72a03c055f637e5fc5cdc7ccf
+[4:55:04 pm] Capturing 45/77: Means_of_Transportation/11. Car/MVI_3118.MOV
+[4:55:09 pm] Saved car: 117 frames, SHA256 03f7ea4ff488a9d77c9ae7376b8251d91fba94612e2c6b97774734ae25c52be2
+[4:55:09 pm] Capturing 46/77: Jobs/84. Teacher/MVI_4745.MOV
+[4:55:12 pm] Saved teacher: 64 frames, SHA256 1eb3a86d18fc21f65fce5c64f600b4f876c419ac96eaaba4252e1a29eec48158
+[4:55:12 pm] Capturing 47/77: Home/28. Window/MVI_9013.MOV
+[4:55:15 pm] Saved window: 72 frames, SHA256 9ddc89c009ff47328f8e4f4ecac333f45a2596246579b43c96d3e526515d2b36
+[4:55:15 pm] Capturing 48/77: Days_and_Time/78. Year/MVI_9175.MOV
+[4:55:18 pm] Saved year: 61 frames, SHA256 f6daa3a677d3b196cef2889ce9be261cb1a179fe5b09c9f1dff9c0fdc3bb6c02
+[4:55:18 pm] Capturing 49/77: Places/23. Court/MVI_3284.MOV
+[4:55:21 pm] Saved court: 74 frames, SHA256 cb15643a74b1e46f7c15ca184ddb29842dd082d8cfa33fb974d5d201cacc887d
+[4:55:21 pm] Capturing 50/77: Adjectives/79. short/MVI_9302.MOV
+[4:55:23 pm] Saved short: 43 frames, SHA256 5f72a3a246732d7e91e7f35b4ffa333299f1f84ee5c17ca6b40dcd7f2f0ab758
+[4:55:23 pm] Capturing 51/77: Society/2. Death/MVI_8663.MOV
+[4:55:26 pm] Saved death: 87 frames, SHA256 5df40776956e91e3e0a73c3bed6a9c5f22eb287b05427c8e32ac460f74aa55bc
+[4:55:26 pm] Capturing 52/77: Animals/5. Cow/MVI_4159.MOV
+[4:55:29 pm] Saved cow: 50 frames, SHA256 2122ef7d18f693bd33b0563900ed65363a3914b2a022a7bb13be4b033d266283
+[4:55:29 pm] Capturing 53/77: Adjectives/94. good/MVI_9350.MOV
+[4:55:31 pm] Saved good: 45 frames, SHA256 9ada2d63b04ce551e732c26a57cb5755ebd010e1ce19441d6e70952d882708d1
+[4:55:31 pm] Capturing 54/77: Clothes/37. Hat/MVI_3837.MOV
+[4:55:32 pm] Saved hat: 41 frames, SHA256 2f653f6900c3bd158bfee713b3dcef3c050a5e9cacd77f45a131df17a10de97d
+[4:55:32 pm] Capturing 55/77: Pronouns/44. it/MVI_9939.MOV
+[4:55:36 pm] Saved it: 74 frames, SHA256 d2ae02db206e929c67d47531ee854607116850fe489e785d049e9d6461ebf80c
+[4:55:36 pm] Capturing 56/77: Greetings/55. Thank you/MVI_0112.MOV
+[4:55:39 pm] Saved thankyou: 75 frames, SHA256 ffef7d88b0e449cdf95a530ea72341573fb6cf37263c3d329eb9721def9e21cf
+[4:55:39 pm] Capturing 57/77: Adjectives/3. happy/MVI_9376.MOV
+[4:55:41 pm] Saved happy: 37 frames, SHA256 51dd302e91ba785a9fc52ec8c064f1fd62bb848fcd4336c779768d9af23fe990
+[4:55:41 pm] Capturing 58/77: Adjectives/91. new/MVI_9261.MOV
+[4:55:43 pm] Saved new: 49 frames, SHA256 aa98dff0d12bec047a9444e6abab020390ae5995974d38c8a2bc9db3221d14dd
+[4:55:43 pm] Capturing 59/77: Electronics/53. Fan/MVI_4964.MOV
+[4:55:45 pm] Saved fan: 54 frames, SHA256 999c8f746057527494f3cde3f3057ec225dfda17a289a410c7cae2a9db375b96
+[4:55:45 pm] Capturing 60/77: Adjectives/79. short/MVI_5190.MOV
+[4:55:47 pm] Saved short: 57 frames, SHA256 08fe97ca2344fc163fd8b93b5a50854f74b1f3bb7a484a14bfd76b33f25c3106
+[4:55:47 pm] Capturing 61/77: Seasons/64. Fall/MVI_5433.MOV
+[4:55:50 pm] Saved fall: 55 frames, SHA256 dd28b510a5b85b23d4340dd1bc25caee0469535c6d972f42affaa00cf0b15c25
+[4:55:50 pm] Capturing 62/77: Society/14. Election/MVI_4306.MOV
+[4:55:53 pm] Saved election: 76 frames, SHA256 962ea0a442cebb54ae100181f38686c1c7f00bb574a5a544bb5d8605bc754215
+[4:55:53 pm] Capturing 63/77: People/78. Girl/MVI_4986.MOV
+[4:55:55 pm] Saved girl: 44 frames, SHA256 ad93f2225b29aab7f20bc8277f1cb0b1763852fe98a051bfec822eb31d3c4b3a
+[4:55:55 pm] Capturing 64/77: Animals/4. Bird/MVI_4156.MOV
+[4:55:58 pm] Saved bird: 67 frames, SHA256 22db7bb69ec1f19f3cf718a45079c1ed4226c0a56abdddf18919ae4b254f2370
+[4:55:58 pm] Capturing 65/77: Adjectives/83. big large/MVI_9396.MOV
+[4:56:00 pm] Saved biglarge: 57 frames, SHA256 9fc10f813c01ce361dc5013adaee61ef5ae238c6a51b65c5fa36aeb599581700
+[4:56:00 pm] Capturing 66/77: People/77. Boy/MVI_3815.MOV
+[4:56:03 pm] Saved boy: 59 frames, SHA256 2686110f1bbe15cfb9fc6f1e0c6a5546ed3537ee2700ab974ecc31008b9b2839
+[4:56:03 pm] Capturing 67/77: People/61. Father/MVI_8626.MOV
+[4:56:06 pm] Saved father: 66 frames, SHA256 dd2beaba7d0e2fa3088f1880d8405f8f5bd466df85408e37bbe9b4df4a270a29
+[4:56:06 pm] Capturing 68/77: People/61. Father/MVI_3909.MOV
+[4:56:09 pm] Saved father: 71 frames, SHA256 55b4d263ef04fa32e6b9620bf1e3714a545c04464fddaf6e36cd7ad8a03b6540
+[4:56:09 pm] Capturing 69/77: Colours/47. Red/MVI_4897.MOV
+[4:56:11 pm] Saved red: 55 frames, SHA256 185b4991a18ffbbd8712ffaa457f203afd79b09da5a029e9a23c9b3e7b4e9122
+[4:56:11 pm] Capturing 70/77: Clothes/42. T-Shirt/MVI_5171.MOV
+[4:56:14 pm] Saved tshirt: 64 frames, SHA256 90f9722260c341ea3a73549b05e6592e9ce0cdee12ade1f88a04211d2e162601
+[4:56:14 pm] Capturing 71/77: Places/28. Store or Shop/MVI_3307.MOV
+[4:56:17 pm] Saved storeorshop: 60 frames, SHA256 102de97de0956ae4a5599d97a6a7fe86e35fb1818fad7d5b300d68e202d67890
+[4:56:17 pm] Capturing 72/77: Home/34. Pen/MVI_8795.MOV
+[4:56:19 pm] Saved pen: 63 frames, SHA256 b53bac7ef54941534b2628fe6684c17d3cb39155aa30f32fe56844e7edd90fb9
+[4:56:19 pm] Capturing 73/77: Home/40. Paint/MVI_8820.MOV
+[4:56:22 pm] Saved paint: 67 frames, SHA256 55712fb606e3d606b1f22e65daa368c85fa897e4f4f96d961918e898dfab2d84
+[4:56:22 pm] Capturing 74/77: Adjectives/1. loud/MVI_5178.MOV
+[4:56:25 pm] Saved loud: 64 frames, SHA256 40dc24ffb980fbfe0f85cbf928caac06a9d219444f996e466fb8cb7bc22d9bdd
+[4:56:25 pm] Capturing 75/77: Pronouns/46. you (plural)/MVI_9945.MOV
+[4:56:28 pm] Saved youplural: 72 frames, SHA256 95300e940f47e6b565fc207814fd49dd25126a0c071bcbe9c937100889be99bf
+[4:56:28 pm] Capturing 76/77: Adjectives/87. hot/MVI_9410.MOV
+[4:56:30 pm] Saved hot: 56 frames, SHA256 5bb8023cb6287184c09a4bea1b3645aceb9bcb1a82ed8da7ac334bcf9257c211
+[4:56:30 pm] Capturing 77/77: Places/35. Bank/MVI_3421.MOV
+[4:56:33 pm] Saved bank: 59 frames, SHA256 5f1223022b4bf33481a00a7e2122d56903ad3d3d88c93b9d9716a0c81e862b39
+[4:56:33 pm] Capture run finished: 77/77 received.

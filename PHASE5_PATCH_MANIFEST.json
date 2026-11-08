@@ -1,0 +1,38 @@
+{
+  "patch": "PHASE5_CANVAS_PIXEL_AUDIT",
+  "version": "1.0.0",
+  "type": "additive_diagnostic_only",
+  "files": [
+    {
+      "path": "PHASE5_PATCH_README.md",
+      "bytes": 1331,
+      "sha256": "f6ed5729b615cd7edfc0d47adda0cdd0e37378ce193c23e9d4a3e5bf7656fcef"
+    },
+    {
+      "path": "scripts/phase5_canvas_pixel_audit.py",
+      "bytes": 30829,
+      "sha256": "1cf4cb0962ffd23b6579918802c965626414795e8e4f5d418bc49212f0ab4d95"
+    },
+    {
+      "path": "scripts/run_phase5_canvas_pixel_audit.ps1",
+      "bytes": 7221,
+      "sha256": "053cd5e09e9817ecc8538d1f68208a2e32b039f76709f396dc8df1c8cb45fc96"
+    },
+    {
+      "path": "tests/test_phase5_canvas_pixel_audit.py",
+      "bytes": 4542,
+      "sha256": "6c1e84fb7fa5537db412a858d14a29d0a30f59579fb2e6cd7643d30ece066bfc"
+    },
+    {
+      "path": "engineering/PHASE5_CANVAS_PIXEL_AUDIT_RUNBOOK.md",
+      "bytes": 3882,
+      "sha256": "aab18be5d86417f10d4fb775ae3f401957ce24ca65c5abc560bb0edf8291f670"
+    }
+  ],
+  "validation": {
+    "focused_tests": "8 passed",
+    "candidate_tree_full_suite": "195 passed, 1 skipped",
+    "python_compile": "passed",
+    "runtime_media_pipe_experiment": "not run in build environment; requires user Windows assets"
+  }
+}

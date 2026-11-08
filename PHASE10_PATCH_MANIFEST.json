@@ -1,0 +1,31 @@
+{
+  "phase": 10,
+  "name": "Browser Lifecycle and Focus Diagnostics",
+  "patch_type": "additive",
+  "files": [
+    "scripts/browser_validation_capture_phase10.html",
+    "scripts/serve_phase10_capture.py",
+    "scripts/phase10_browser_lifecycle_analysis.py",
+    "scripts/phase10_browser_lifecycle_orchestrator.py",
+    "scripts/verify_phase10_bundle.py",
+    "scripts/run_phase10_browser_lifecycle.ps1",
+    "tests/test_phase10_browser_lifecycle.py",
+    "PHASE10_README.md",
+    "engineering/PHASE10_EXECUTION_CONTRACT.md"
+  ],
+  "guardrails": {
+    "classifier_checkpoint_loaded": false,
+    "iot_enabled": false,
+    "production_recognition_modified": false,
+    "capture_protocol": "ISLBRW01",
+    "capture_encoder": "synchronous toDataURL JPEG q92",
+    "callback_gate_ms": 0
+  },
+  "modes": [
+    "foreground_focused",
+    "visible_unfocused",
+    "hidden_background",
+    "focus_recovery"
+  ],
+  "diagnostic_clips": 6
+}

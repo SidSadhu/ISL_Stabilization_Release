@@ -1,0 +1,35 @@
+﻿# Local secrets and settings
+.env
+.env.*
+!.env.example
+# Virtual environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# Model/data assets and generated runtime state
+*.pth
+*.pt
+*.ckpt
+*.mov
+*.mp4
+*.avi
+*.m4v
+*.webm
+checkpoints/
+data/include_videos/
+outputs/
+var/
+*.sqlite3
+*.db
+# IDE and OS files
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini
+
+# Generated package metadata
+*.egg-info/

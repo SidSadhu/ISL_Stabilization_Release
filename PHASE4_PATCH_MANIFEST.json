@@ -1,0 +1,16 @@
+{
+  "patch": "PHASE4_Controlled_Replay_Patch",
+  "type": "additive overlay; does not modify production application files",
+  "files": [
+    "scripts/phase4_controlled_replay_diagnostics.py",
+    "scripts/run_phase4_controlled_replay.ps1",
+    "tests/test_phase4_controlled_replay_diagnostics.py",
+    "PHASE4_CONTROLLED_REPLAY_README.md"
+  ],
+  "safety": {
+    "classifier_checkpoint_loaded": false,
+    "iot_enabled": false,
+    "production_code_modified": false
+  },
+  "scope": "six Phase 3 diagnostic clips; seven controlled MediaPipe replay variants per clip"
+}

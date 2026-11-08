@@ -1,0 +1,7 @@
+ISL_Manual_INCLUDE50_PreIoT_Implementation
+Version: 1.0.0-rc3
+Date: 2026-11-07
+Scope: Manual isolated-sign recognition using the full INCLUDE-50 vocabulary; IoT remains locked with an empty two-label allowlist.
+Changes: Phase 0 audit; dependency/setup fixes; target-Windows Phase 1 capture and paired evaluation; resumable Phase 2 four-path feature provenance tooling, report builders, historical extractor audit and regression coverage. Locked model and recognition contract unchanged.
+
+Phase 1: completed on target Windows, 77/77 clips. Browser top-1 44/77; OpenCV native top-1 46/77. Phase 2 source tooling: complete and review-tested; target-Windows all-77 ablation is the next pending execution gate. Recognition-demo release remains NO-GO; IoT remains disabled.

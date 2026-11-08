@@ -1,0 +1,8 @@
+{
+  "min_frames": 30,
+  "predict_every": 5,
+  "stabilization": "threshold_smoothing",
+  "confidence_threshold": 0.70,
+  "history_size": 5,
+  "hand_order_mode": "verified_one_hand_fix"
+}

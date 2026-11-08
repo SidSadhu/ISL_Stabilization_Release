@@ -1,0 +1,71 @@
+{
+  "project": "ISL Recognition \u2014 INCLUDE-50 manual isolated-sign MVP",
+  "package_version": "1.0.0-rc3",
+  "build_date": "2026-11-07",
+  "locked_contract": {
+    "class_count": 50,
+    "features_per_frame": 134,
+    "model_input_shape": [
+      1,
+      169,
+      134
+    ],
+    "text_confidence_threshold": 0.4,
+    "text_threshold_calibrated": false,
+    "browser_canvas_width": 640,
+    "browser_jpeg_quality": 0.92,
+    "browser_timer_interval_ms": 40,
+    "max_capture_seconds": 6.0,
+    "max_browser_frames": 169,
+    "iot_enabled": false,
+    "pre_iot_lockdown": true,
+    "default_iot_mapping_count": 0
+  },
+  "external_model_assets": {
+    "ai4bharat_repository_commit": "df348f4a640060d4d39f02556d9f96851e8c46c7",
+    "checkpoint_filename": "include50_no_cnn_transformer_small.pth",
+    "checkpoint_sha256": "8644dc4793b8f648af5c3ad42f0c5d5eeb86950cf4cbb2e2aae6e3cc678447b4",
+    "official_validation_clip_count": 77,
+    "included_in_package": false
+  },
+  "completed_historical_experiment_not_to_repeat": {
+    "experiment": "20-seed dropout evaluation",
+    "status": "completed per handover evidence",
+    "repeat": false
+  },
+  "verification": {
+    "pytest": "160 passed, 1 skipped",
+    "pytest_command": "PYTHONPATH=src:scripts:. python -m pytest -q -rs --disable-warnings",
+    "python": "3.13.5 Linux review container",
+    "pytest_version": "9.0.2",
+    "python_compileall": "PASS",
+    "javascript_node_check": "PASS: app.js, landmark_diagnostics.js, landmark_worker.js",
+    "phase1_browser_canvas_benchmark": "NOT RUN \u2014 required external repository, checkpoint, videos, MediaPipe and target Windows runtime are missing",
+    "target_windows_python312": "NOT RUN",
+    "webcam_gpu_broker_firmware_hardware": "NOT RUN",
+    "review_container_pytest": "168 passed, 1 skipped",
+    "review_container_python": "3.13.5 Linux review container",
+    "review_container_pytest_version": "9.0.2",
+    "target_windows_python": "3.12.10 x64 Windows 11",
+    "target_windows_checkpoint_strict_load": "PASS: 1 passed in 7.35s",
+    "target_windows_pre_phase2_pytest": "161 passed, 0 failed (one non-fatal Starlette/httpx deprecation warning)",
+    "phase1_official_validation_manifest": "PASS: 77 clips, 50 classes, pinned split SHA256 verified",
+    "phase1_browser_canvas_capture": "PASS: 77/77 captured; capture index and logs retained",
+    "phase1_paired_browser_top1": "44/77 (57.14%)",
+    "phase1_paired_browser_top5": "67/77 (87.01%)",
+    "phase1_paired_browser_macro_f1": "0.5206666667",
+    "phase1_paired_opencv_native_top1": "46/77 (59.74%)",
+    "phase1_paired_opencv_native_top5": "69/77 (89.61%)",
+    "phase1_paired_opencv_native_macro_f1": "0.5594285714",
+    "phase1_actual_inference_evaluation": "COMPLETED on target Windows; official validation split only; test split unused",
+    "phase2_source_analysis_and_tools": "IMPLEMENTED; review-container suite 168 passed, 1 skipped",
+    "phase2_all77_four_path_ablation": "PENDING target Windows execution; do not claim complete until summary.json reports 77 successful / 0 failed",
+    "historical_mediapipe_upper_body_only_parity": "UNPROVEN; current modern first-25 adapter is shape/order compatibility only"
+  },
+  "safety_constraints": [
+    "Do not enable IoT during any recognition diagnostic.",
+    "Do not populate the IoT label map until a later approved, separate safety phase.",
+    "Do not modify the model, checkpoint, 50-class order, 134-D feature contract or 169-frame input before controlled evidence and an approved decision.",
+    "Do not re-run the completed 20-seed dropout experiment."
+  ]
+}

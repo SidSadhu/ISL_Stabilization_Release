@@ -1,0 +1,7 @@
+# Model versions recorded by the project. Validate installation on the target Windows machine.
+torch==2.11.0
+transformers==4.46.3
+tokenizers==0.20.3
+huggingface-hub==0.26.2
+timm
+xgboost==3.4.1  # Required by AI4Bharat models/__init__.py import chain

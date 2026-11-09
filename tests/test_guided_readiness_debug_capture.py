@@ -96,7 +96,8 @@ def test_capture_patch_keeps_classifier_contract_and_adds_readiness_and_diagnost
     assert "waitForStableReadiness" in app
     assert "recentSamples.length > 5" in diagnostics
     assert "handDetected >= 4" in diagnostics
-    assert "busyState !== 'ready'" in diagnostics
+    assert "busyState === \'processing\'" in diagnostics
+    assert "busyState === \'capturing\'" in diagnostics
     assert "save_debug:Boolean($('saveDebugCapture')?.checked)" in app
     assert 'id="saveDebugCapture"' in html
     assert 'id="cameraInfo"' in html

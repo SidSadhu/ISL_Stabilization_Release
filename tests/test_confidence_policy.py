@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 
 from isl_recognition.app_config import Settings
 from isl_recognition.webapp import create_app
+import isl_recognition.webapp as webapp_module
 from test_webapp import FakeModel, FakeMQTT, make_services, send_valid_frames
 
 
@@ -74,13 +75,35 @@ def test_rejected_prediction_exposes_candidate_and_reason(tmp_path):
     assert r.get('threshold_is_calibrated') is False
 
 
-def test_rejected_prediction_never_triggers_iot(tmp_path):
+def test_rejected_prediction_never_triggers_iot(tmp_path, monkeypatch):
     """Rejected prediction must not publish any IoT command."""
     model = FakeModel(index=22, confidence=0.35)
     svc = make_services(tmp_path, model=model)
     svc.settings = replace(svc.settings, confidence_threshold=0.40, pre_iot_lockdown=False)
     svc.iot_enabled = True
     svc.mqtt = FakeMQTT()
+
+    # Keep this policy test independent of Windows wall-clock scheduling jitter.
+    # Only this webapp module receives a synthetic monotonic clock.
+    # Production max_capture_seconds remains unchanged at 6 seconds.
+    class _SyntheticCaptureClock:
+        def __init__(self, real_time):
+            self._real_time = real_time
+            self._tick = 0.0
+
+        def monotonic(self):
+            self._tick += 0.001
+            return self._tick
+
+        def __getattr__(self, name):
+            return getattr(self._real_time, name)
+
+    monkeypatch.setattr(
+        webapp_module,
+        "time",
+        _SyntheticCaptureClock(webapp_module.time),
+    )
+
     with TestClient(create_app(svc)) as client:
         with client.websocket_connect('/ws/capture') as ws:
             ws.receive_json()

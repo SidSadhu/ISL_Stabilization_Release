@@ -26,6 +26,9 @@
   let frameInFlight = false;
   let scheduled = false;
   let failed = false;
+  let reconnectAttempts = 0;
+  const MAX_PREVIEW_RECONNECTS = 3;
+  const PREVIEW_RECONNECT_DELAYS_MS = [500, 1000, 2000];
   let busyState = 'ready';
   let lastResultAt = 0;
   const resultIntervals = [];
@@ -158,7 +161,7 @@
   }
 
   function scheduleFrame(delayOverride = null) {
-    if (scheduled || failed || !toggle.checked || !connected || busyState !== 'ready'
+    if (scheduled || failed || !toggle.checked || !connected || busyState === 'processing'
       || video.readyState < 2 || video.videoWidth < 2 || frameInFlight
       || !socket || socket.readyState !== WebSocket.OPEN) return;
     scheduled = true;
@@ -166,7 +169,7 @@
     // queue to protect against. Ask for the next diagnostic frame promptly after
     // a result; the backend enforces a small minimum interval as a safety guard.
     // True update rate is bounded by local MediaPipe latency, not a fixed timer.
-    const delay = Number.isFinite(delayOverride) ? Math.max(10, delayOverride) : 10;
+    const delay = Number.isFinite(delayOverride) ? Math.max(10, delayOverride) : (busyState === 'capturing' ? 500 : 10);
     setTimeout(() => {
       scheduled = false;
       sendDiagnosticFrame();
@@ -174,7 +177,7 @@
   }
 
   function sendDiagnosticFrame() {
-    if (!toggle.checked || !connected || busyState !== 'ready' || frameInFlight
+    if (!toggle.checked || !connected || busyState === 'processing' || frameInFlight
       || !socket || socket.readyState !== WebSocket.OPEN
       || video.readyState < 2 || video.videoWidth < 2) return;
     try {
@@ -233,11 +236,13 @@
     const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
     try {
       socket = new WebSocket(`${scheme}//${location.host}/ws/landmark-preview`);
+      const previewSocket = socket;
       socket.addEventListener('open', () => {
         // The server sends an explicit `connected` message only after its local
         // MediaPipe session is ready.
       });
       socket.addEventListener('message', (event) => {
+        if (socket !== previewSocket) return;
         let message;
         try { message = JSON.parse(event.data); } catch {
           setMessage('The local landmark service sent an unreadable response.', 'warn');
@@ -267,6 +272,7 @@
         }
       });
       socket.addEventListener('error', () => {
+        if (socket !== previewSocket) return;
         failed = true;
         connecting = false;
         connected = false;
@@ -277,14 +283,32 @@
         setMessage('Could not connect to the local landmark-preview WebSocket. Restart the app with the updated patch and reload the page.', 'warn');
       });
       socket.addEventListener('close', (event) => {
-        const wasExpected = event.code === 1000 && (!toggle.checked || busyState !== 'ready');
+        if (socket !== previewSocket) return;
+        const wasExpected = event.code === 1000 && !toggle.checked;
         socket = null;
         connected = false;
         connecting = false;
         frameInFlight = false;
         scheduled = false;
-        if (!wasExpected && toggle.checked && !failed) {
-          setMessage('The local landmark-preview connection closed. Toggle the overlay off and on to reconnect.', 'warn');
+        if (!wasExpected && toggle.checked) {
+          // A normal close while recording is unexpected too. The v2 predicate
+          // masked this case because busyState was not 'ready'.
+          failed = false;
+          if (busyState === 'processing') {
+            setMessage('Live landmark preview disconnected during extraction; it will restart when recognition finishes.', 'warn');
+          } else if (reconnectAttempts < MAX_PREVIEW_RECONNECTS) {
+            const retryDelay = PREVIEW_RECONNECT_DELAYS_MS[reconnectAttempts];
+            reconnectAttempts += 1;
+            setMessage(`Live landmark preview disconnected. Reconnecting (${reconnectAttempts}/${MAX_PREVIEW_RECONNECTS})…`, 'warn');
+            window.setTimeout(() => {
+              if (toggle.checked && !failed && busyState !== 'processing'
+                && !socket && !connecting && video.readyState >= 2 && video.videoWidth > 1) {
+                startDiagnostics();
+              }
+            }, retryDelay);
+          } else {
+            setMessage('Live landmark preview could not reconnect after three attempts. Toggle the overlay off and on to retry.', 'warn');
+          }
         }
       });
     } catch (error) {
@@ -297,6 +321,7 @@
   toggle.addEventListener('change', () => {
     if (toggle.checked) {
       failed = false;
+      reconnectAttempts = 0;
       canvas.style.display = 'block';
       startDiagnostics();
     } else {
@@ -323,14 +348,28 @@
   });
 
   window.addEventListener('isl-capture-state', (event) => {
+    // ISL capture-time overlay mode v2: visual-only, throttled during recording.
     busyState = event.detail?.state || 'ready';
-    if (busyState !== 'ready') {
-      // Release the second MediaPipe session during countdown capture and post-capture
-      // extraction. This avoids competing with the classifier's full-clip extractor.
+    if (busyState === 'ready') reconnectAttempts = 0;
+
+    if (busyState === 'processing') {
+      // Yield the separate preview MediaPipe session to full-clip extraction.
       stopDiagnostics(true);
+      setMessage('Live landmarks are paused during full-clip extraction to protect recognition processing.', 'warn');
       return;
     }
-    if (toggle.checked) startDiagnostics();
+
+    if (toggle.checked) {
+      if (busyState === 'capturing') {
+        setMessage('Live landmarks remain visible during recording. This diagnostic overlay is sampled at about 2 updates/second; the recorded recognition stream is separate and unchanged.', 'good');
+        if (!socket && !connecting) startDiagnostics();
+        else scheduleFrame(500);
+        return;
+      }
+      // On 'ready', reconnect after the processing-time pause. If the socket is
+      // already active, startDiagnostics() safely does nothing.
+      startDiagnostics();
+    }
   });
   video.addEventListener('loadeddata', () => {
     updateCanvasSize();

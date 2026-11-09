@@ -15,7 +15,12 @@ def test_capture_default_and_limit_preserve_169_frame_contract():
 def test_live_preview_has_no_artificial_long_delay_and_uses_cache_busted_assets():
     js = (ROOT / "src/isl_recognition/static/landmark_diagnostics.js").read_text(encoding="utf-8")
     html = (ROOT / "src/isl_recognition/static/index.html").read_text(encoding="utf-8")
-    assert "const delay = Number.isFinite(delayOverride) ? Math.max(10, delayOverride) : 10;" in js
+    # The normal ready-state preview remains responsive at 10 ms.
+    # During recording, only the separate diagnostic overlay is throttled to 500 ms.
+    assert (
+        "const delay = Number.isFinite(delayOverride) ? Math.max(10, delayOverride) "
+        ": (busyState === 'capturing' ? 500 : 10);"
+    ) in js
     assert "Math.min(480, video.videoWidth)" in js
     assert "/static/landmark_diagnostics.js?v=" in html
     assert "/static/app.js?v=" in html

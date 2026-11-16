@@ -12,14 +12,14 @@ demonstration is explicitly opt-in and is not production certification.
 
 | INCLUDE-50 label | MQTT command | ESP8266 response |
 |---|---|---|
-| `hello` | `HELLO_ACTION` | Green LED and OLED `HELLO!` remain active for 60 s; active-LOW buzzer gives a short 140 ms confirmation beep |
+| `quiet` | `QUIET_ACTION` | Green LED and OLED `QUIET!` remain active for 60 s; active-LOW buzzer gives a short 140 ms confirmation beep |
 | `time` | `TIME_ACTION` | Yellow LED and large live 24-hour IST clock remain visible for 60 s |
-| `quiet` | none | Text recognition only; no MQTT publication |
+| `hello` | none | Text recognition only; no MQTT publication |
 
 The base `config/iot_label_map.json` remains empty for release compatibility.
 This feature branch adds a separate `config/iot_label_map.esp8266.json` profile
-containing only `hello` and `time`. The mapping is independent of classifier output
-ordering. `quiet` is deliberately not mapped.
+containing only `quiet` and `time`. The mapping is independent of classifier output
+ordering. `hello` is deliberately not mapped.
 
 Both recognition and IoT confidence thresholds are 0.30 (30%) for this local demo
 (`ISL_CONFIDENCE_THRESHOLD=0.30` and `ISL_IOT_MIN_CONFIDENCE=0.30`). Both are
@@ -201,13 +201,13 @@ that the subscriber processed the command.
    and the UI toggle must be disabled.
 2. Opt in locally, restart the server, verify the health response, then enable the
    UI toggle.
-3. Select `hello` as expected sign, perform it with confidence at or above 0.30,
-   and confirm green LED, OLED `HELLO!`, short beep and a correlated acknowledgement.
+3. Select `quiet` as expected sign, perform it with confidence at or above 0.30,
+   and confirm green LED, OLED `QUIET!`, short beep and a correlated acknowledgement.
 4. Select `time` as expected sign, perform it and confirm yellow LED, a live
    HH:MM:SS clock in Asia/Kolkata time, no buzzer and a correlated acknowledgement.
-5. Select `quiet` as expected sign, perform it and confirm browser text only; quiet
+5. Select `hello` as expected sign, perform it and confirm browser text only; hello
    has no approved IoT mapping, so no device command is sent.
-6. Deliberately select `quiet` but perform `hello` (and vice versa). Confirm
+6. Deliberately select `hello` but perform `quiet` (and vice versa). Confirm
    `expected_sign_mismatch` and no hardware action.
 7. Test confidence below 0.30, unavailable broker and duplicate delivery.
    They must not cause an additional physical action.
@@ -222,7 +222,7 @@ or electrical safety. Record those separately after testing the real NodeMCU.
 
 ## 9. Known boundaries
 
-- Each visible feedback action lasts 60 seconds: HELLO keeps the green LED and `HELLO!` on the OLED; TIME keeps the yellow LED and live IST clock on the OLED. The HELLO buzzer remains a brief 140 ms confirmation beep. The device rejects additional actions while one is active.
+- Each visible feedback action lasts 60 seconds: QUIET keeps the green LED and `QUIET!` on the OLED; TIME keeps the yellow LED and live IST clock on the OLED. The QUIET buzzer remains a brief 140 ms confirmation beep. HELLO is text-only. The device rejects additional actions while one is active.
 - The device requires working Wi-Fi and NTP before accepting commands.
 - Duplicate IDs are held in RAM for the current boot; device reboot clears that
   local cache. Server-side one-command-per-capture persistence remains in effect.

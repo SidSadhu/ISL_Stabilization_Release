@@ -2,7 +2,7 @@
  * ISL INCLUDE-50 -> ESP8266 NodeMCU V3 hardware demo
  *
  * Commands:
- *   hello -> green LED + OLED "HELLO!" for 60 seconds + short active-LOW buzzer beep
+ *   quiet -> green LED + OLED "QUIET!" for 60 seconds + short active-LOW buzzer beep
  *   time  -> yellow LED + live IST clock for 60 seconds
  *
  * MQTT contract: schema 1.0
@@ -54,8 +54,8 @@ constexpr uint8_t GREEN_LED_PIN = D5;      // GPIO14
 constexpr uint8_t YELLOW_LED_PIN = D6;     // GPIO12
 constexpr uint8_t BUZZER_PIN = D7;         // GPIO13, active LOW
 constexpr uint8_t OLED_ADDRESS = 0x3C;
-constexpr uint32_t HELLO_ACTION_MS = 60000;
-constexpr uint32_t HELLO_BEEP_MS = 140;
+constexpr uint32_t QUIET_ACTION_MS = 60000;
+constexpr uint32_t QUIET_BEEP_MS = 140;
 constexpr uint32_t TIME_ACTION_MS = 60000;  // Keep the live clock visible for 60 seconds
 constexpr float MIN_IOT_CONFIDENCE = 0.30f;
 constexpr uint32_t MAX_COMMAND_TTL_SECONDS = 30;
@@ -66,7 +66,7 @@ WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 
-enum ActiveAction : uint8_t { ACTION_NONE, ACTION_HELLO, ACTION_TIME };
+enum ActiveAction : uint8_t { ACTION_NONE, ACTION_QUIET, ACTION_TIME };
 ActiveAction activeAction = ACTION_NONE;
 uint32_t actionEndsAt = 0;
 uint32_t buzzerEndsAt = 0;
@@ -190,7 +190,7 @@ void rememberIds(const String& commandId, const String& captureId) {
   recentWriteIndex = (recentWriteIndex + 1) % RECENT_ID_COUNT;
 }
 
-void startHelloAction() {
+void startQuietAction() {
   safeOutputs();
   activeAction = ACTION_HELLO;
   const uint32_t actionStartedAt = millis();
@@ -199,7 +199,7 @@ void startHelloAction() {
   digitalWrite(GREEN_LED_PIN, HIGH);
   digitalWrite(YELLOW_LED_PIN, LOW);
   digitalWrite(BUZZER_PIN, LOW);
-  showLines("HELLO!", "Green LED + beep");
+  showLines("QUIET!", "Green LED + beep");
 }
 
 void refreshClockDisplay() {
@@ -320,9 +320,9 @@ void handleCommand(const byte* payload, unsigned int length) {
     return;
   }
 
-  const bool isHello = sourceLabel == "hello" && command == "HELLO_ACTION";
+  const bool isQuiet = sourceLabel == "quiet" && command == "QUIET_ACTION";
   const bool isTime = sourceLabel == "time" && command == "TIME_ACTION";
-  if (!isHello && !isTime) {
+  if (!isQuiet && !isTime) {
     reject(commandId, "command_not_allowlisted");
     return;
   }
@@ -340,9 +340,9 @@ void handleCommand(const byte* payload, unsigned int length) {
   }
 
   rememberIds(commandId, captureId);
-  if (isHello) {
+  if (isQuiet) {
     startHelloAction();
-    publishAck(commandId, "acknowledged", "hello_outputs_activated");
+    publishAck(commandId, "acknowledged", "quiet_outputs_activated");
   } else {
     startTimeAction();
     publishAck(commandId, "acknowledged", "time_display_activated");

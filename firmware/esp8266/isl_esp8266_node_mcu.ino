@@ -87,7 +87,7 @@ void onSystemTimeSet(bool fromSntp) {
   if (!fromSntp) return;
   ntpSyncReceived = true;
   const time_t syncedEpoch = time(nullptr);
-  Serial.printf("[NTP] SNTP update received; UTC epoch=%lu\\n",
+  Serial.printf("[NTP] SNTP update received; UTC epoch=%lu\n",
                 static_cast<unsigned long>(syncedEpoch));
 }
 

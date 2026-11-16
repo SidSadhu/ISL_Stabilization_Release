@@ -83,13 +83,16 @@
 The project owner selected `hello` and `time` as the two local hardware demonstration signs.
 The `quiet` label remains text-only and is not mapped to any MQTT command.
 
-On the dedicated `feature/esp8266-isl-iot-demo` branch, the mapping is therefore
-`hello → HELLO_ACTION` and `time → TIME_ACTION`. The base/main branch is not modified.
+On the dedicated `feature/esp8266-isl-iot-demo` branch, a separate
+`config/iot_label_map.esp8266.json` profile maps `hello → HELLO_ACTION` and
+`time → TIME_ACTION`. The default `config/iot_label_map.json` remains empty, preserving
+all existing release-check expectations. The base/main branch is not modified.
 The feature branch adds a local ESP8266 NodeMCU firmware target and matching protocol
 actions while retaining MQTT schema version 1.0 and the existing backend command router.
 
-The pre-IoT lockdown remains enabled by default. The local demo requires the explicit
-`ISL_PRE_IOT_LOCKDOWN=false` setting and then a separate per-session enable action in
-the browser. This is an experimental local-network demonstration, not production
+The hard-coded `pre_iot_lockdown: bool = True` base policy remains unchanged. The
+local demo requires `ISL_IOT_HARDWARE_DEMO=true`, the explicit ESP8266 mapping path,
+and then a separate per-session enable action in the browser. Release-check scripts
+explicitly reject active local demo mode. This is an experimental local-network demonstration, not production
 certification. The model, checkpoint, class ordering, 134-D feature contract and
 169-frame input contract are unchanged.

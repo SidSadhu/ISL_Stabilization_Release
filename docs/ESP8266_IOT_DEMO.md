@@ -12,7 +12,7 @@ demonstration is explicitly opt-in and is not production certification.
 
 | INCLUDE-50 label | MQTT command | ESP8266 response |
 |---|---|---|
-| `hello` | `HELLO_ACTION` | Green LED for 2.2 s, OLED says `HELLO!`, active-LOW buzzer beeps for 140 ms |
+| `hello` | `HELLO_ACTION` | Green LED and OLED `HELLO!` remain active for 60 s; active-LOW buzzer gives a short 140 ms confirmation beep |
 | `time` | `TIME_ACTION` | Yellow LED and large live 24-hour IST clock for 30 s |
 | `quiet` | none | Text recognition only; no MQTT publication |
 
@@ -222,7 +222,7 @@ or electrical safety. Record those separately after testing the real NodeMCU.
 
 ## 9. Known boundaries
 
-- The action window is intentionally finite: HELLO 2.2 seconds; TIME 30 seconds.
+- Each visible feedback action lasts 60 seconds: HELLO keeps the green LED and `HELLO!` on the OLED; TIME keeps the yellow LED and live IST clock on the OLED. The HELLO buzzer remains a brief 140 ms confirmation beep. The device rejects additional actions while one is active.
 - The device requires working Wi-Fi and NTP before accepting commands.
 - Duplicate IDs are held in RAM for the current boot; device reboot clears that
   local cache. Server-side one-command-per-capture persistence remains in effect.

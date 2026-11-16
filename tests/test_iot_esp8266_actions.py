@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-import struct
 from types import SimpleNamespace
 
 import pytest
@@ -95,9 +94,7 @@ def test_command_timestamps_preserve_second_precision_on_esp8266():
     assert isinstance(command["expires_at"], int)
     assert command["issued_at"] == 1_794_862_583
     assert command["expires_at"] == 1_794_862_593
-    # A 32-bit float rounds both epoch endpoints to the same value.
-    float32 = lambda value: struct.unpack("f", struct.pack("f", value))[0]
-    assert float32(command["issued_at"]) == float32(command["expires_at"])
+    assert command["expires_at"] - command["issued_at"] == 10
     assert validate_command(
         command, label_commands=MAPPINGS, now=command["issued_at"] + 1
     ) == (True, "validated")

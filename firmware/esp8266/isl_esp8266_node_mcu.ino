@@ -27,17 +27,18 @@
 #include <Adafruit_SSD1306.h>
 #include <time.h>
 
-// ---------- EDIT THESE FOUR SETTINGS ----------
-const char* WIFI_SSID = "YOUR_PHONE_HOTSPOT_SSID";
-const char* WIFI_PASSWORD = "YOUR_PHONE_HOTSPOT_PASSWORD";
+// Copy secrets.example.h to secrets.h and fill it in locally.
+// secrets.h is ignored by Git so your Wi-Fi/MQTT credentials are not committed.
+#include "secrets.h"
 
-// Your laptop Wi-Fi IPv4 was previously 10.140.96.1.
-// Check it again after reconnecting the hotspot.
-IPAddress MQTT_BROKER(10, 140, 96, 1);
-const uint16_t MQTT_PORT = 1883;
-const char* MQTT_USERNAME = "YOUR_MQTT_USERNAME";
-const char* MQTT_PASSWORD = "YOUR_MQTT_PASSWORD";
-// ---------------------------------------------
+const char* WIFI_SSID = ISL_WIFI_SSID;
+const char* WIFI_PASSWORD = ISL_WIFI_PASSWORD;
+IPAddress MQTT_BROKER(
+    ISL_MQTT_BROKER_IP_1, ISL_MQTT_BROKER_IP_2,
+    ISL_MQTT_BROKER_IP_3, ISL_MQTT_BROKER_IP_4);
+const uint16_t MQTT_PORT = ISL_MQTT_PORT;
+const char* MQTT_USERNAME = ISL_MQTT_USERNAME;
+const char* MQTT_PASSWORD = ISL_MQTT_PASSWORD;
 
 const char* COMMAND_TOPIC = "isl/command/v1";
 const char* ACK_TOPIC = "isl/ack/v1";
@@ -319,8 +320,7 @@ void connectMQTT() {
   lastAttemptAt = millis();
 
   bool connected = false;
-  if (strlen(MQTT_USERNAME) > 0 &&
-      String(MQTT_USERNAME) != "YOUR_MQTT_USERNAME") {
+  if (strlen(MQTT_USERNAME) > 0) {
     connected = mqtt.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
   } else {
     connected = mqtt.connect(MQTT_CLIENT_ID);

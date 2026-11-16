@@ -249,8 +249,8 @@ void handleCommand(const byte* payload, unsigned int length) {
     reject(commandId, "confidence_out_of_range");
     return;
   }
-  // Epoch timestamps must be JSON integers. On ESP8266, double is 32-bit
-  // float, which cannot preserve seconds at current Unix-epoch magnitudes.
+  // Epoch timestamps must be JSON integers. Whole Unix seconds make expiry
+  // comparisons exact across the backend and embedded JSON implementation.
   if (!doc["issued_at"].is<long>() && !doc["issued_at"].is<unsigned long>()) {
     reject(commandId, "invalid_issued_at");
     return;
@@ -267,6 +267,11 @@ void handleCommand(const byte* payload, unsigned int length) {
   const uint32_t issuedAt = doc["issued_at"].as<uint32_t>();
   const uint32_t expiresAt = doc["expires_at"].as<uint32_t>();
   const uint32_t now = static_cast<uint32_t>(time(nullptr));
+  Serial.printf("[TIME] issued=%lu expires=%lu device_now=%lu ttl=%lu\\n",
+                static_cast<unsigned long>(issuedAt),
+                static_cast<unsigned long>(expiresAt),
+                static_cast<unsigned long>(now),
+                static_cast<unsigned long>(expiresAt - issuedAt));
   if (issuedAt > now && issuedAt - now > 5U) {
     reject(commandId, "invalid_or_expired_time_window");
     return;

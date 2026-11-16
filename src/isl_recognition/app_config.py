@@ -61,7 +61,7 @@ class Settings:
     mqtt_host: str = os.getenv("MQTT_HOST", "127.0.0.1")
     mqtt_port: int = int(os.getenv("MQTT_PORT", "1883"))
     iot_label_map_path: Path = _path_env("ISL_IOT_LABEL_MAP", PROJECT_ROOT / "config" / "iot_label_map.json")  # type: ignore[assignment]
-    iot_min_confidence: float = float(os.getenv("ISL_IOT_MIN_CONFIDENCE", "0.70"))
+    iot_min_confidence: float = float(os.getenv("ISL_IOT_MIN_CONFIDENCE", "0.30"))
     mqtt_username: str | None = os.getenv("MQTT_USERNAME") or None
     mqtt_password: str | None = os.getenv("MQTT_PASSWORD") or None
     mqtt_command_topic: str = os.getenv("MQTT_COMMAND_TOPIC", "isl/command/v1")

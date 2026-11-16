@@ -3,7 +3,7 @@
 **Version:** 1.0.0-rc3 (implementation package, 6 November 2026)
 **Scope:** manual Start/Stop capture of one isolated INCLUDE-50 sign per inference. This is not continuous sign-language translation.
 
-This package consolidates the recognition web app, MediaPipe diagnostics, INCLUDE-50 reference gallery, manual capture UX, evaluation tooling, and fail-closed pre-IoT safety lock. It retains the 50-class classifier and 134-D/169-frame input contract. Only two owner-selected labels are routed by the experimental hardware demo on this feature branch (`hello` and `time`). The default mapping remains empty; this branch still requires a separate mapping profile and explicit local opt-in.
+This package consolidates the recognition web app, MediaPipe diagnostics, INCLUDE-50 reference gallery, manual capture UX, evaluation tooling, and fail-closed pre-IoT safety lock. It retains the 50-class classifier and 134-D/169-frame input contract. Only two owner-selected labels are routed by the experimental hardware demo on this feature branch (`quiet` and `time`). The default mapping remains empty; this branch still requires a separate mapping profile and explicit local opt-in.
 
 ## Current implementation and handoff plan
 

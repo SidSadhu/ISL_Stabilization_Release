@@ -60,6 +60,16 @@ def utc_iso(epoch: float | None = None) -> str:
     ).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
+def expected_sign_matches(predicted_label: Any, expected_label: Any) -> bool:
+    """Fail closed unless the prediction exactly matches the user-selected official label."""
+    return (
+        isinstance(predicted_label, str)
+        and isinstance(expected_label, str)
+        and bool(expected_label)
+        and predicted_label == expected_label
+    )
+
+
 def build_command(
     *,
     capture_id: str,
@@ -68,7 +78,7 @@ def build_command(
     label_commands: Mapping[str, str] | None = None,
     now: float | None = None,
     ttl_seconds: float = 10.0,
-    min_confidence: float = 0.70,
+    min_confidence: float = 0.30,
 ) -> dict[str, Any]:
     mappings = dict(label_commands or {})
     command_name = mappings.get(source_label)
@@ -103,7 +113,7 @@ def validate_command(
     *,
     label_commands: Mapping[str, str] | None = None,
     now: float | None = None,
-    min_confidence: float = 0.70,
+    min_confidence: float = 0.30,
 ) -> tuple[bool, str]:
     if not isinstance(payload, dict):
         return False, "payload_not_object"
@@ -152,7 +162,7 @@ class SimulatedESP32:
     def __init__(
         self,
         label_commands: Mapping[str, str] | None = None,
-        min_confidence: float = 0.70,
+        min_confidence: float = 0.30,
     ):
         self.label_commands = dict(label_commands or {})
         self.min_confidence = float(min_confidence)

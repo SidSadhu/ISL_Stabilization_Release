@@ -133,8 +133,10 @@ remove that ignore rule or commit credentials. Open
 `firmware/esp8266/isl_esp8266_node_mcu.ino`, compile and upload.
 
 Open Serial Monitor at 115200 baud. The OLED should show boot, NTP synchronization
-and MQTT ready messages. The firmware waits for valid NTP time before connecting to
-MQTT because command issue/expiry fields are Unix UTC timestamps.
+and MQTT ready messages. The firmware starts SNTP only after Wi-Fi is connected and requires an actual
+SNTP time-update callback for the current Wi-Fi connection before connecting to
+MQTT. A merely plausible Unix epoch is not treated as proof of synchronization.
+Command issue/expiry fields are integer Unix UTC epoch seconds.
 
 ## 6. Apply and run on Windows
 

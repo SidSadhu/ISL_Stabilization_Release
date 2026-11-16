@@ -25,8 +25,17 @@ if ($LASTEXITCODE -ne 0) { throw 'Preflight failed.' }
 Write-Host '5/5 - Pre-IoT policy check' -ForegroundColor Cyan
 $source = Get-Content .\src\isl_recognition\app_config.py -Raw
 if ($source -notmatch 'pre_iot_lockdown: bool = True') { throw 'Pre-IoT code-level lockdown is not true.' }
+if ($env:ISL_IOT_HARDWARE_DEMO -match '^(?i:true|1|yes)
+Write-Host 'Pre-IoT release checks passed. This does not verify a physical webcam, external model assets, or production recognition accuracy.' -ForegroundColor Green
+) { throw 'Disable ISL_IOT_HARDWARE_DEMO before running pre-IoT release checks.' }
 if (Test-Path '.\.env') {
-  $iotEnabled = Select-String -Path '.\.env' -Pattern '^\s*ISL_IOT_ENABLED\s*=\s*true\s*$' -Quiet
+  $iotEnabled = Select-String -Path '.\.env' -Pattern '^\s*ISL_IOT_ENABLED\s*=\s*true\s*
+Write-Host 'Pre-IoT release checks passed. This does not verify a physical webcam, external model assets, or production recognition accuracy.' -ForegroundColor Green
+ -Quiet
   if ($iotEnabled) { throw '.env must set ISL_IOT_ENABLED=false for the pre-IoT release.' }
+  $demoEnabled = Select-String -Path '.\.env' -Pattern '^\s*ISL_IOT_HARDWARE_DEMO\s*=\s*(true|1|yes)\s*
+Write-Host 'Pre-IoT release checks passed. This does not verify a physical webcam, external model assets, or production recognition accuracy.' -ForegroundColor Green
+ -Quiet
+  if ($demoEnabled) { throw '.env must not enable the local hardware demo during pre-IoT release checks.' }
 }
 Write-Host 'Pre-IoT release checks passed. This does not verify a physical webcam, external model assets, or production recognition accuracy.' -ForegroundColor Green

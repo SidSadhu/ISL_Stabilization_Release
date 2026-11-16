@@ -193,8 +193,9 @@ that the subscriber processed the command.
 5. Perform `quiet`. Confirm browser text only and no new IoT history event.
 6. Test a confidence below 0.70, an unavailable broker, and duplicate delivery.
    They must not cause an additional physical action.
-7. Turn IoT OFF in the UI when testing is complete. Remove the opt-in setting from
-   `.env` or set it to true to restore the default safety lock.
+7. Turn IoT OFF in the UI when testing is complete. Remove
+   `ISL_IOT_HARDWARE_DEMO` and `ISL_IOT_LABEL_MAP` from `.env`, or set the demo
+   flag to false, then restart the backend to restore the default safety lock.
 
 Automated protocol tests cover mapping, valid commands, confidence rejection,
 expiry validation and simulator duplicate handling. They do not prove Arduino

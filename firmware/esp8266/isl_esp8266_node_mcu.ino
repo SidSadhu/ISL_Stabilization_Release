@@ -2,8 +2,8 @@
  * ISL INCLUDE-50 -> ESP8266 NodeMCU V3 hardware demo
  *
  * Commands:
- *   hello -> green LED + OLED "HELLO!" + short active-LOW buzzer beep
- *   time  -> yellow LED + live IST clock for 10 seconds
+ *   hello -> green LED + OLED "HELLO!" for 60 seconds + short active-LOW buzzer beep
+ *   time  -> yellow LED + live IST clock for 60 seconds
  *
  * MQTT contract: schema 1.0
  *   Subscribe: isl/command/v1 at QoS 1
@@ -54,9 +54,9 @@ constexpr uint8_t GREEN_LED_PIN = D5;      // GPIO14
 constexpr uint8_t YELLOW_LED_PIN = D6;     // GPIO12
 constexpr uint8_t BUZZER_PIN = D7;         // GPIO13, active LOW
 constexpr uint8_t OLED_ADDRESS = 0x3C;
-constexpr uint32_t HELLO_ACTION_MS = 2200;
+constexpr uint32_t HELLO_ACTION_MS = 60000;
 constexpr uint32_t HELLO_BEEP_MS = 140;
-constexpr uint32_t TIME_ACTION_MS = 30000;  // Keep the live clock visible for 30 seconds
+constexpr uint32_t TIME_ACTION_MS = 60000;  // Keep the live clock visible for 60 seconds
 constexpr float MIN_IOT_CONFIDENCE = 0.30f;
 constexpr uint32_t MAX_COMMAND_TTL_SECONDS = 30;
 constexpr size_t MQTT_BUFFER_SIZE = 768;

@@ -27,6 +27,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <time.h>
+#include <ctype.h>
+#include <math.h>
 
 // Copy secrets.example.h to secrets.h and fill it in locally.
 // secrets.h is ignored by Git so your Wi-Fi/MQTT credentials are not committed.
@@ -65,7 +67,6 @@ Adafruit_SSD1306 display(128, 64, &Wire, -1);
 
 enum ActiveAction : uint8_t { ACTION_NONE, ACTION_HELLO, ACTION_TIME };
 ActiveAction activeAction = ACTION_NONE;
-uint32_t actionStartedAt = 0;
 uint32_t actionEndsAt = 0;
 uint32_t buzzerEndsAt = 0;
 uint32_t lastClockRefreshAt = 0;
@@ -75,7 +76,6 @@ String recentCaptureIds[RECENT_ID_COUNT];
 size_t recentWriteIndex = 0;
 
 bool oledReady = false;
-bool displayReadyMessageShown = false;
 
 bool timeIsSynchronized() {
   return time(nullptr) > 1700000000;
@@ -111,7 +111,6 @@ void safeOutputs() {
 void showReady() {
   safeOutputs();
   showLines("READY", "Waiting for ISL command");
-  displayReadyMessageShown = true;
 }
 
 void publishAck(const String& commandId, const char* status,
@@ -169,7 +168,7 @@ void rememberIds(const String& commandId, const String& captureId) {
 void startHelloAction() {
   safeOutputs();
   activeAction = ACTION_HELLO;
-  actionStartedAt = millis();
+  const uint32_t actionStartedAt = millis();
   actionEndsAt = actionStartedAt + HELLO_ACTION_MS;
   buzzerEndsAt = actionStartedAt + HELLO_BEEP_MS;
   digitalWrite(GREEN_LED_PIN, HIGH);
@@ -194,8 +193,7 @@ void refreshClockDisplay() {
 void startTimeAction() {
   safeOutputs();
   activeAction = ACTION_TIME;
-  actionStartedAt = millis();
-  actionEndsAt = actionStartedAt + TIME_ACTION_MS;
+  actionEndsAt = millis() + TIME_ACTION_MS;
   lastClockRefreshAt = 0;
   digitalWrite(YELLOW_LED_PIN, HIGH);
   digitalWrite(GREEN_LED_PIN, LOW);

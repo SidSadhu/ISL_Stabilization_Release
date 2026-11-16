@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+import struct
 from types import SimpleNamespace
 
 import pytest
@@ -82,6 +83,32 @@ def test_iot_default_threshold_is_thirty_percent():
         label_commands=MAPPINGS, now=now,
     )
     assert validate_command(command, label_commands=MAPPINGS, now=now + 1) == (True, "validated")
+
+def test_command_timestamps_preserve_second_precision_on_esp8266():
+    now = 1_794_862_583.5562735
+    command = build_command(
+        capture_id=str(uuid.uuid4()), source_label="hello", confidence=0.90,
+        label_commands=MAPPINGS, now=now, ttl_seconds=10,
+    )
+
+    assert isinstance(command["issued_at"], int)
+    assert isinstance(command["expires_at"], int)
+    assert command["issued_at"] == 1_794_862_583
+    assert command["expires_at"] == 1_794_862_593
+    # A 32-bit float rounds both epoch endpoints to the same value.
+    float32 = lambda value: struct.unpack("f", struct.pack("f", value))[0]
+    assert float32(command["issued_at"]) == float32(command["expires_at"])
+    assert validate_command(
+        command, label_commands=MAPPINGS, now=command["issued_at"] + 1
+    ) == (True, "validated")
+
+
+def test_command_ttl_must_be_whole_seconds_for_esp8266():
+    with pytest.raises(ValueError, match="whole seconds"):
+        build_command(
+            capture_id=str(uuid.uuid4()), source_label="hello", confidence=0.90,
+            label_commands=MAPPINGS, now=1_800_000_000.25, ttl_seconds=10.5,
+        )
 
 
 def test_load_selected_esp8266_mappings(tmp_path):

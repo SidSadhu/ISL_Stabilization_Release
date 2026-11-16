@@ -27,6 +27,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <time.h>
+#include <coredecls.h>
 #include <ctype.h>
 #include <math.h>
 
@@ -77,8 +78,30 @@ size_t recentWriteIndex = 0;
 
 bool oledReady = false;
 
+// A plausible Unix epoch is not proof of a successful NTP update. Require an
+// actual SNTP callback after the current Wi-Fi connection before MQTT/commands.
+volatile bool ntpSyncReceived = false;
+bool ntpConfiguredForCurrentConnection = false;
+
+void onSystemTimeSet(bool fromSntp) {
+  if (!fromSntp) return;
+  ntpSyncReceived = true;
+  const time_t syncedEpoch = time(nullptr);
+  Serial.printf("[NTP] SNTP update received; UTC epoch=%lu\\n",
+                static_cast<unsigned long>(syncedEpoch));
+}
+
+void configureNtpAfterWiFiConnect() {
+  if (WiFi.status() != WL_CONNECTED || ntpConfiguredForCurrentConnection) return;
+
+  ntpSyncReceived = false;
+  configTime(19800, 0, "time.windows.com", "time.google.com", "pool.ntp.org");
+  ntpConfiguredForCurrentConnection = true;
+  Serial.println("[NTP] configured after Wi-Fi connection; waiting for actual SNTP update");
+}
+
 bool timeIsSynchronized() {
-  return time(nullptr) > 1700000000;
+  return ntpSyncReceived && time(nullptr) > 1700000000;
 }
 
 void showLines(const String& line1, const String& line2 = "",
@@ -383,10 +406,12 @@ void setup() {
 
   WiFi.persistent(false);
   WiFi.setAutoReconnect(true);
+  settimeofday_cb(onSystemTimeSet);
   connectWiFi();
 
-  // Unix epoch time stays UTC for protocol validation; localtime() uses IST.
-  configTime(19800, 0, "pool.ntp.org", "time.google.com", "time.nist.gov");
+  // Start SNTP only after Wi-Fi is connected. Unix epoch stays UTC for protocol
+  // validation; localtime() uses IST for the OLED clock.
+  configureNtpAfterWiFiConnect();
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
   mqtt.setBufferSize(MQTT_BUFFER_SIZE);
@@ -397,10 +422,13 @@ void setup() {
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     safeOutputs();
+    ntpSyncReceived = false;
+    ntpConfiguredForCurrentConnection = false;
     connectWiFi();
   }
 
   if (WiFi.status() == WL_CONNECTED) {
+    configureNtpAfterWiFiConnect();
     connectMQTT();
     if (mqtt.connected()) mqtt.loop();
   }

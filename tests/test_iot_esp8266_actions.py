@@ -4,7 +4,10 @@ import json
 import uuid
 
 import pytest
+from dataclasses import replace
+from pathlib import Path
 
+from isl_recognition.app_config import Settings
 from isl_recognition.iot_protocol import (
     SimulatedESP32,
     build_command,
@@ -121,3 +124,30 @@ def test_legacy_led_blink_simulator_command_remains_supported():
     assert result["status"] == "acknowledged"
     assert simulator.led_blinks == 1
     assert simulator.actions == []
+
+
+
+def test_base_pre_iot_policy_stays_hard_locked_by_default():
+    settings = replace(Settings(), iot_hardware_demo_enabled=False)
+    assert settings.pre_iot_lockdown is True
+    assert settings.iot_lock_active is True
+
+
+def test_explicit_local_hardware_demo_only_changes_effective_lock():
+    settings = replace(Settings(), iot_hardware_demo_enabled=True)
+    assert settings.pre_iot_lockdown is True
+    assert settings.iot_lock_active is False
+
+
+def test_repository_esp8266_profile_contains_only_hello_and_time():
+    root = Path(__file__).resolve().parents[1]
+    label_map = json.loads((root / "config" / "label_map_include50.json").read_text(encoding="utf-8"))
+    demo_map_path = root / "config" / "iot_label_map.esp8266.json"
+
+    assert label_map["hello"] == 22
+    assert label_map["time"] == 43
+    assert label_map["quiet"] == 34
+    assert load_label_commands(demo_map_path, label_map) == MAPPINGS
+
+    default_map = json.loads((root / "config" / "iot_label_map.json").read_text(encoding="utf-8"))
+    assert default_map["mappings"] == {}

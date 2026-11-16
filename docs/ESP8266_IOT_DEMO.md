@@ -16,9 +16,10 @@ demonstration is explicitly opt-in and is not production certification.
 | `time` | `TIME_ACTION` | Yellow LED and live 24-hour IST clock for 10 s |
 | `quiet` | none | Text recognition only; no MQTT publication |
 
-The shipped mapping in this feature branch contains only `hello` and `time`.
-The mapping is independent of classifier output ordering. `quiet` is deliberately
-not mapped.
+The base `config/iot_label_map.json` remains empty for release compatibility.
+This feature branch adds a separate `config/iot_label_map.esp8266.json` profile
+containing only `hello` and `time`. The mapping is independent of classifier output
+ordering. `quiet` is deliberately not mapped.
 
 The IoT confidence threshold remains independently set to 0.70 (provisional,
 not statistically calibrated). The recognition result can still be displayed even
@@ -29,15 +30,19 @@ when IoT is off, the label is unmapped, or the IoT confidence gate rejects it.
 The backend's pre-IoT lock remains ON by default. The process-local IoT enable flag
 also starts OFF on every application launch. Both protections must be addressed:
 
-1. Set `ISL_PRE_IOT_LOCKDOWN=false` in the local `.env` only for the local demo.
+1. Set `ISL_IOT_HARDWARE_DEMO=true` and
+   `ISL_IOT_LABEL_MAP=config/iot_label_map.esp8266.json` in the local `.env`
+   only for the local demo.
 2. Start the backend.
 3. Confirm `GET /api/health` reports `pre_iot_lockdown: false`,
    `iot_mapping_count: 2`, and no `iot_mapping_error`.
 4. Enable IoT using the existing UI toggle. It is session-local and starts OFF again
    after restarting the application.
 
-If the setting is absent, malformed, or set to any value other than `false`,
-the pre-IoT lock remains enabled.
+If the demo flag is absent, malformed, or set to a value other than `true`,
+the pre-IoT lock remains active. The underlying `pre_iot_lockdown: bool = True`
+release policy remains unchanged; the new profile exposes a separate effective-lock
+property for this explicitly opted-in local demonstration.
 
 Do not set this option on an internet-facing or production deployment. The backend
 continues to bind to loopback only.
@@ -47,7 +52,8 @@ continues to bind to loopback only.
 Backend (running on the same laptop as Mosquitto):
 
 ```dotenv
-ISL_PRE_IOT_LOCKDOWN=false
+ISL_IOT_HARDWARE_DEMO=true
+ISL_IOT_LABEL_MAP=config/iot_label_map.esp8266.json
 ISL_IOT_MIN_CONFIDENCE=0.70
 MQTT_HOST=127.0.0.1
 MQTT_PORT=1883
@@ -58,7 +64,9 @@ MQTT_PASSWORD=YOUR_MQTT_PASSWORD
 ```
 
 Merge these lines into the existing local `.env`; do not overwrite unrelated
-model, database, or application settings. Keep `.env` out of Git.
+model, database, or application settings. Keep `.env` out of Git. The default
+`config/iot_label_map.json` remains empty; only the separate ESP8266 profile is used
+when `ISL_IOT_LABEL_MAP` is set.
 
 The ESP8266 connects to the laptop using the laptop's Wi-Fi IPv4 address, not
 `127.0.0.1`. The example secrets header defaults to `10.140.96.1` because that was the previously

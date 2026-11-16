@@ -13,7 +13,7 @@ demonstration is explicitly opt-in and is not production certification.
 | INCLUDE-50 label | MQTT command | ESP8266 response |
 |---|---|---|
 | `hello` | `HELLO_ACTION` | Green LED and OLED `HELLO!` remain active for 60 s; active-LOW buzzer gives a short 140 ms confirmation beep |
-| `time` | `TIME_ACTION` | Yellow LED and large live 24-hour IST clock for 30 s |
+| `time` | `TIME_ACTION` | Yellow LED and large live 24-hour IST clock remain visible for 60 s |
 | `quiet` | none | Text recognition only; no MQTT publication |
 
 The base `config/iot_label_map.json` remains empty for release compatibility.

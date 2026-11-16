@@ -52,8 +52,10 @@ class Settings:
     # is not established because the upstream upper_body_only model was removed.
     pose_compat_mode: str = "modern_full_pose_first25_index_compatible_not_exact_legacy"
 
-    # A pre-IoT release must not be able to actuate devices.
-    pre_iot_lockdown: bool = True
+    # Physical IoT remains locked unless the local owner explicitly opts in.
+    # This is intentionally separate from ISL_IOT_ENABLED: the browser toggle
+    # still controls the per-process enable state after the app starts.
+    pre_iot_lockdown: bool = os.getenv("ISL_PRE_IOT_LOCKDOWN", "true").strip().lower() not in {"false", "0", "no"}
     iot_default_enabled: bool = os.getenv("ISL_IOT_ENABLED", "false").lower() in {"true", "1", "yes"}
     iot_cooldown_seconds: float = float(os.getenv("ISL_IOT_COOLDOWN_SECONDS", "5"))
     mqtt_host: str = os.getenv("MQTT_HOST", "127.0.0.1")

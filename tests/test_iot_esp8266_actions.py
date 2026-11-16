@@ -104,3 +104,20 @@ def test_command_schema_remains_version_1_0():
         "schema_version", "command_id", "command", "source_label",
         "confidence", "capture_id", "issued_at", "expires_at",
     }
+
+
+def test_legacy_led_blink_simulator_command_remains_supported():
+    legacy_mapping = {"hello": "LED_BLINK"}
+    command = build_command(
+        capture_id=str(uuid.uuid4()),
+        source_label="hello",
+        confidence=0.95,
+        label_commands=legacy_mapping,
+        now=1_800_000_000.0,
+    )
+    simulator = SimulatedESP32(legacy_mapping)
+    result = simulator.process(command, now=1_800_000_001.0)
+
+    assert result["status"] == "acknowledged"
+    assert simulator.led_blinks == 1
+    assert simulator.actions == []

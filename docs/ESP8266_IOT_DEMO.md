@@ -107,9 +107,11 @@ Install these libraries from Arduino Library Manager:
 - Adafruit GFX Library.
 - Adafruit SSD1306.
 
-Open `firmware/esp8266/isl_esp8266_node_mcu.ino`. Edit the Wi-Fi SSID/password,
-MQTT username/password, and broker IPv4 near the top of the sketch. Do not put
-credentials into a public commit. Compile and upload.
+Copy `firmware/esp8266/secrets.example.h` to
+`firmware/esp8266/secrets.h`. Edit the Wi-Fi SSID/password, MQTT username/password,
+and broker IPv4 in `secrets.h`. The real secrets file is ignored by Git. Do not
+remove that ignore rule or commit credentials. Open
+`firmware/esp8266/isl_esp8266_node_mcu.ino`, compile and upload.
 
 Open Serial Monitor at 115200 baud. The OLED should show boot, NTP synchronization
 and MQTT ready messages. The firmware waits for valid NTP time before connecting to

@@ -13,7 +13,7 @@ demonstration is explicitly opt-in and is not production certification.
 | INCLUDE-50 label | MQTT command | ESP8266 response |
 |---|---|---|
 | `hello` | `HELLO_ACTION` | Green LED for 2.2 s, OLED says `HELLO!`, active-LOW buzzer beeps for 140 ms |
-| `time` | `TIME_ACTION` | Yellow LED and live 24-hour IST clock for 10 s |
+| `time` | `TIME_ACTION` | Yellow LED and large live 24-hour IST clock for 30 s |
 | `quiet` | none | Text recognition only; no MQTT publication |
 
 The base `config/iot_label_map.json` remains empty for release compatibility.
@@ -222,7 +222,7 @@ or electrical safety. Record those separately after testing the real NodeMCU.
 
 ## 9. Known boundaries
 
-- The action window is intentionally finite: HELLO 2.2 seconds; TIME 10 seconds.
+- The action window is intentionally finite: HELLO 2.2 seconds; TIME 30 seconds.
 - The device requires working Wi-Fi and NTP before accepting commands.
 - Duplicate IDs are held in RAM for the current boot; device reboot clears that
   local cache. Server-side one-command-per-capture persistence remains in effect.

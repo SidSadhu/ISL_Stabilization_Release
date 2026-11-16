@@ -76,3 +76,20 @@
 **Decision:** Validate protocol with a local broker and simulated ESP32 first. Physical ESP32/LED testing remains blocked until full validation, selected labels, firmware allowlist parity, authenticated/restricted broker and electrical review are complete.
 
 **Reason:** A successful unit test or broker publish is not proof of physical action. Simulated acknowledgements, device acknowledgements and observed LED behaviour must be reported separately.
+
+
+## Addendum — 17 November 2026: Selected local ESP8266 demonstration labels
+
+The project owner selected `hello` and `time` as the two local hardware demonstration signs.
+The `quiet` label remains text-only and is not mapped to any MQTT command.
+
+On the dedicated `feature/esp8266-isl-iot-demo` branch, the mapping is therefore
+`hello → HELLO_ACTION` and `time → TIME_ACTION`. The base/main branch is not modified.
+The feature branch adds a local ESP8266 NodeMCU firmware target and matching protocol
+actions while retaining MQTT schema version 1.0 and the existing backend command router.
+
+The pre-IoT lockdown remains enabled by default. The local demo requires the explicit
+`ISL_PRE_IOT_LOCKDOWN=false` setting and then a separate per-session enable action in
+the browser. This is an experimental local-network demonstration, not production
+certification. The model, checkpoint, class ordering, 134-D feature contract and
+169-frame input contract are unchanged.

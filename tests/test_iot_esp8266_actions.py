@@ -103,7 +103,7 @@ def test_command_timestamps_preserve_second_precision_on_esp8266():
 def test_command_ttl_must_be_whole_seconds_for_esp8266():
     with pytest.raises(ValueError, match="whole seconds"):
         build_command(
-            capture_id=str(uuid.uuid4()), source_label="hello", confidence=0.90,
+            capture_id=str(uuid.uuid4()), source_label="quiet", confidence=0.90,
             label_commands=MAPPINGS, now=1_800_000_000.25, ttl_seconds=10.5,
         )
 
@@ -145,7 +145,7 @@ def test_build_and_validate_esp8266_commands(label, expected):
 
 def test_low_confidence_command_cannot_be_built():
     with pytest.raises(ValueError, match="Confidence"):
-        make_command(label="hello", confidence=0.29)
+        make_command(label="quiet", confidence=0.29)
 
 
 def test_simulator_acknowledges_quiet_and_time_once():

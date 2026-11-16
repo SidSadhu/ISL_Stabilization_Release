@@ -505,7 +505,7 @@ def test_shared_030_threshold_allows_iot_when_expected_sign_matches(tmp_path):
         enabled = client.post('/api/iot/enable', json={'enabled': True}).json()
         assert enabled['iot_enabled'] is True
         with client.websocket_connect('/ws/capture') as ws:
-            ws.receive_json(); ws.send_json({'type':'start'}); ws.receive_json()
+            ws.receive_json(); ws.send_json({'type':'start', 'expected_label':'hello'}); ws.receive_json()
             send_valid_frames(ws, 14); ws.send_json({'type':'stop'})
             while True:
                 msg = ws.receive_json()

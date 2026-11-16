@@ -2,7 +2,7 @@
 test_confidence_policy.py — Verify confidence threshold policy and UI separation.
 
 Key requirements:
-  1. Default threshold is 0.40 (provisional, uncalibrated).
+  1. Default threshold is 0.30 (provisional, uncalibrated).
   2. Rejected predictions always expose candidate + reason; never silently pass.
   3. Top-5 candidates are always returned in result, regardless of outcome.
   4. threshold_is_calibrated=False is always asserted in API response.
@@ -23,10 +23,10 @@ import isl_recognition.webapp as webapp_module
 from test_webapp import FakeModel, FakeMQTT, make_services, send_valid_frames
 
 
-def test_default_threshold_is_040():
+def test_default_threshold_is_030():
     s = Settings()
-    assert abs(s.confidence_threshold - 0.30) < 1e-6 or abs(s.confidence_threshold - 0.40) < 1e-6, (
-        f"Expected 0.30 or 0.40 threshold, got {s.confidence_threshold}"
+    assert abs(s.confidence_threshold - 0.30) < 1e-6, (
+        f"Expected 0.30 threshold, got {s.confidence_threshold}"
     )
 
 

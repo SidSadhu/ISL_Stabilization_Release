@@ -21,9 +21,13 @@ This feature branch adds a separate `config/iot_label_map.esp8266.json` profile
 containing only `hello` and `time`. The mapping is independent of classifier output
 ordering. `quiet` is deliberately not mapped.
 
-The IoT confidence threshold remains independently set to 0.70 (provisional,
-not statistically calibrated). The recognition result can still be displayed even
-when IoT is off, the label is unmapped, or the IoT confidence gate rejects it.
+Both recognition and IoT confidence thresholds are 0.30 (30%) for this local demo
+(`ISL_CONFIDENCE_THRESHOLD=0.30` and `ISL_IOT_MIN_CONFIDENCE=0.30`). Both are
+provisional and uncalibrated; a score is not a guaranteed probability of correctness.
+IoT actuation additionally requires an expected INCLUDE-50 label selected before
+capture, an exact match to the backend prediction, an accepted result, and an
+approved mapping. Missing expected labels and mismatches always suppress actuation.
+Text recognition remains available when IoT is off or a label is not mapped.
 
 ## 2. Default-off safety and explicit opt-in
 
@@ -33,10 +37,14 @@ also starts OFF on every application launch. Both protections must be addressed:
 1. Set `ISL_IOT_HARDWARE_DEMO=true` and
    `ISL_IOT_LABEL_MAP=config/iot_label_map.esp8266.json` in the local `.env`
    only for the local demo.
-2. Start the backend.
-3. Confirm `GET /api/health` reports `pre_iot_lockdown: false`,
-   `iot_mapping_count: 2`, and no `iot_mapping_error`.
-4. Enable IoT using the existing UI toggle. It is session-local and starts OFF again
+2. Select the expected INCLUDE-50 sign in the reference gallery and press
+   `Use as expected sign` before arming capture. The backend validates the label
+   and freezes it into the capture at START.
+3. Start the backend.
+4. Confirm `GET /api/health` reports `pre_iot_lockdown: false`,
+   `iot_mapping_count: 2`, `iot_expected_sign_match_required: true`, and no
+   `iot_mapping_error`.
+5. Enable IoT using the existing UI toggle. It is session-local and starts OFF again
    after restarting the application.
 
 If the demo flag is absent, malformed, or set to a value other than `true`,
@@ -54,8 +62,9 @@ Backend (running on the same laptop as Mosquitto):
 ```dotenv
 ISL_IOT_HARDWARE_DEMO=true
 ISL_IOT_LABEL_MAP=config/iot_label_map.esp8266.json
-ISL_IOT_MIN_CONFIDENCE=0.70
-MQTT_HOST=127.0.0.1
+ISL_CONFIDENCE_THRESHOLD=0.30
+ISL_IOT_MIN_CONFIDENCE=0.30
+MQTT_HOST=10.140.96.1
 MQTT_PORT=1883
 MQTT_COMMAND_TOPIC=isl/command/v1
 MQTT_ACK_TOPIC=isl/ack/v1
@@ -68,10 +77,12 @@ model, database, or application settings. Keep `.env` out of Git. The default
 `config/iot_label_map.json` remains empty; only the separate ESP8266 profile is used
 when `ISL_IOT_LABEL_MAP` is set.
 
-The ESP8266 connects to the laptop using the laptop's Wi-Fi IPv4 address, not
-`127.0.0.1`. The example secrets header defaults to `10.140.96.1` because that was the previously
-verified hotspot address in this setup. Check it again with `ipconfig`; update the
-four `ISL_MQTT_BROKER_IP_*` values in `secrets.h` if it changed.
+Both the backend and ESP8266 connect to the broker using the laptop's current
+Wi-Fi IPv4 address, not `127.0.0.1`. The current verified hotspot address is
+`10.140.96.1`; set backend `MQTT_HOST` and the four
+`ISL_MQTT_BROKER_IP_*` values in `secrets.h` to the current address from
+`ipconfig` whenever it changes. The FastAPI web server itself remains bound to
+loopback (`127.0.0.1`).
 
 Mosquitto must listen on the laptop's hotspot/LAN interface, allow the configured
 user to subscribe to `isl/command/v1` and publish to `isl/ack/v1`, and be allowed
@@ -169,8 +180,9 @@ and retains the backend's existing fields:
 `schema_version`, `command_id`, `command`, `source_label`, `confidence`,
 `capture_id`, `issued_at`, `expires_at`.
 
-The device verifies UUID-shaped IDs, exact label/command pairs, confidence >= 0.70,
-a valid UTC time window and a maximum 30-second TTL. The backend creates 10-second
+The device verifies UUID-shaped IDs, exact label/command pairs, confidence >= 0.30,
+a valid UTC time window and a maximum 30-second TTL. The backend independently
+requires the selected expected sign to exactly match the prediction before publishing. The backend creates 10-second
 commands. The firmware remembers the last 24 acknowledged command/capture pairs
 in RAM to suppress QoS redelivery during the current boot. The backend's persisted
 one-command-per-capture guard provides the server-side duplicate barrier.
@@ -186,14 +198,17 @@ that the subscriber processed the command.
    and the UI toggle must be disabled.
 2. Opt in locally, restart the server, verify the health response, then enable the
    UI toggle.
-3. Perform `hello` with a confidence at or above 0.70. Confirm green LED, OLED
-   `HELLO!`, short beep, and a correlated `acknowledged` event.
-4. Perform `time`. Confirm yellow LED, live HH:MM:SS clock in Asia/Kolkata time,
-   no buzzer, and a correlated acknowledgement.
-5. Perform `quiet`. Confirm browser text only and no new IoT history event.
-6. Test a confidence below 0.70, an unavailable broker, and duplicate delivery.
+3. Select `hello` as expected sign, perform it with confidence at or above 0.30,
+   and confirm green LED, OLED `HELLO!`, short beep and a correlated acknowledgement.
+4. Select `time` as expected sign, perform it and confirm yellow LED, a live
+   HH:MM:SS clock in Asia/Kolkata time, no buzzer and a correlated acknowledgement.
+5. Select `quiet` as expected sign, perform it and confirm browser text only; quiet
+   has no approved IoT mapping, so no device command is sent.
+6. Deliberately select `quiet` but perform `hello` (and vice versa). Confirm
+   `expected_sign_mismatch` and no hardware action.
+7. Test confidence below 0.30, unavailable broker and duplicate delivery.
    They must not cause an additional physical action.
-7. Turn IoT OFF in the UI when testing is complete. Remove
+8. Turn IoT OFF in the UI when testing is complete. Remove
    `ISL_IOT_HARDWARE_DEMO` and `ISL_IOT_LABEL_MAP` from `.env`, or set the demo
    flag to false, then restart the backend to restore the default safety lock.
 

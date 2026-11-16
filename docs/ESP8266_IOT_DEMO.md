@@ -181,9 +181,8 @@ and retains the backend's existing fields:
 `capture_id`, `issued_at`, `expires_at`.
 
 The device verifies UUID-shaped IDs, exact label/command pairs, confidence >= 0.30,
-integer Unix UTC epoch-second timestamps (required because ESP8266 `double` is 32-bit
-and cannot preserve second precision at current epoch magnitudes), a valid UTC time
-window and a maximum 30-second TTL. The backend independently requires the selected
+integer Unix UTC epoch-second timestamps (to keep expiry arithmetic exact across
+embedded JSON implementations), a valid UTC time window and a maximum 30-second TTL. The backend independently requires the selected
 expected sign to exactly match the prediction before publishing. The backend creates
 10-second commands. The firmware remembers the last 24 acknowledged command/capture pairs
 in RAM to suppress QoS redelivery during the current boot. The backend's persisted

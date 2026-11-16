@@ -16,7 +16,7 @@ SUPPORTED_COMMANDS = {
     "LED_BLINK_TWICE": 2,
     "LED_BLINK_THREE": 3,
     # Physical ESP8266 demo actions.
-    "HELLO_ACTION": 0,
+    "QUIET_ACTION": 0,
     "TIME_ACTION": 0,
 }
 ACK_STATUSES = {"acknowledged", "rejected", "duplicate"}
@@ -206,9 +206,9 @@ class SimulatedESP32:
                         3: "simulated_led_triple_blink_processed",
                     }
                     detail = details[pulse_count]
-                elif command_name == "HELLO_ACTION":
+                elif command_name == "QUIET_ACTION":
                     self.actions.append(command_name)
-                    detail = "simulated_hello_action_processed"
+                    detail = "simulated_quiet_action_processed"
                 elif command_name == "TIME_ACTION":
                     self.actions.append(command_name)
                     detail = "simulated_time_action_processed"

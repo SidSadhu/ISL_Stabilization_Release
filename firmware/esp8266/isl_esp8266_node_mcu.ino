@@ -6,8 +6,9 @@
  *   time  -> yellow LED + live IST clock for 10 seconds
  *
  * MQTT contract: schema 1.0
- *   Subscribe: isl/command/v1
- *   Publish:   isl/ack/v1
+ *   Subscribe: isl/command/v1 at QoS 1
+ *   Publish:   isl/ack/v1 at QoS 0 (PubSubClient publish limitation)
+ * The acknowledgement is application-level and correlated by command_id.
  *
  * Install with Arduino IDE:
  *   - ESP8266 board package (tested target: NodeMCU 1.0 / ESP-12E)

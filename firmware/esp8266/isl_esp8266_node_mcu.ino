@@ -192,10 +192,10 @@ void rememberIds(const String& commandId, const String& captureId) {
 
 void startQuietAction() {
   safeOutputs();
-  activeAction = ACTION_HELLO;
+  activeAction = ACTION_QUIET;
   const uint32_t actionStartedAt = millis();
-  actionEndsAt = actionStartedAt + HELLO_ACTION_MS;
-  buzzerEndsAt = actionStartedAt + HELLO_BEEP_MS;
+  actionEndsAt = actionStartedAt + QUIET_ACTION_MS;
+  buzzerEndsAt = actionStartedAt + QUIET_BEEP_MS;
   digitalWrite(GREEN_LED_PIN, HIGH);
   digitalWrite(YELLOW_LED_PIN, LOW);
   digitalWrite(BUZZER_PIN, LOW);
@@ -341,7 +341,7 @@ void handleCommand(const byte* payload, unsigned int length) {
 
   rememberIds(commandId, captureId);
   if (isQuiet) {
-    startHelloAction();
+    startQuietAction();
     publishAck(commandId, "acknowledged", "quiet_outputs_activated");
   } else {
     startTimeAction();

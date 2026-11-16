@@ -107,7 +107,8 @@ The recorded single-clip-per-class benchmark outputs live under `experiments/`. 
 ## Document map
 
 - `PROJECT_CONTEXT.md`, `PROJECT_SPEC.md` — project scope and model contract
-- `docs/PRODUCTION_READINESS_CONTRACT.md` — gates that must pass before IoT
+- `docs/PRODUCTION_READINESS_CONTRACT.md` — gates that must pass before production IoT
+- `docs/ESP8266_IOT_DEMO.md` — optional local NodeMCU ESP8266 hardware demo setup and acceptance tests
 - `docs/LIVE_LANDMARK_DIAGNOSTICS.md` — preview behavior and limitations
 - `docs/REFERENCE_GALLERY_BENCHMARK.md` — benchmark methodology
 - `docs/REFERENCE_PIPELINE_PARITY_COMPAT_FIX.md` — legacy MediaPipe limitation
@@ -122,7 +123,7 @@ The recorded single-clip-per-class benchmark outputs live under `experiments/`. 
 2. The 29-video benchmark is small and not guaranteed to be independent of training data.
 3. Webcam recognition, preview responsiveness and latency must be tested on the actual Windows host.
 4. Final confidence threshold calibration requires independent labeled recordings.
-5. Physical IoT behavior is deliberately outside this release and locked off.
+5. The base/main release remains locked off. This feature branch adds an experimental local ESP8266 demo behind the default-on pre-IoT lock; it is not production certification. See `docs/ESP8266_IOT_DEMO.md`.
 
 Do not represent this release as a general-purpose ISL translator or as production-certified until these limitations are resolved and the acceptance criteria in the contract are met.
 

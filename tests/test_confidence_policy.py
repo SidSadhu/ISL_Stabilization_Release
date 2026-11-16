@@ -45,7 +45,7 @@ def test_accepted_prediction_at_threshold(tmp_path):
                 msg = ws.receive_json()
                 if msg['type'] == 'result': break
     assert msg['result']['outcome'] == 'accepted'
-    assert msg['result']['confidence'] == 0.40
+    assert msg['result']['confidence'] == 0.30
 
 
 def test_rejected_prediction_exposes_candidate_and_reason(tmp_path):

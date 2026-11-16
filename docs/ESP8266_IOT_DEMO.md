@@ -150,8 +150,12 @@ a mapping count other than two, or the lockdown is still active.
 
 ## 7. Protocol and acknowledgement behaviour
 
-The firmware subscribes to `isl/command/v1` with QoS 1 and publishes acknowledgements
-to `isl/ack/v1` with retain disabled. The JSON command schema remains version `1.0`
+The firmware subscribes to `isl/command/v1` at QoS 1 and publishes acknowledgements
+to `isl/ack/v1` with retain disabled. PubSubClient only supports QoS 0 publishing,
+so device acknowledgements are QoS 0 even though the backend-to-device command path
+is QoS 1. The acknowledgement is still an application-level JSON response correlated
+by `command_id`; a lost QoS 0 acknowledgement can cause a UI timeout after a physical
+action, so verify the hardware output as well as the UI status. The JSON command schema remains version `1.0`
 and retains the backend's existing fields:
 
 `schema_version`, `command_id`, `command`, `source_label`, `confidence`,

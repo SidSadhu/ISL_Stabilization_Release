@@ -61,9 +61,9 @@ Merge these lines into the existing local `.env`; do not overwrite unrelated
 model, database, or application settings. Keep `.env` out of Git.
 
 The ESP8266 connects to the laptop using the laptop's Wi-Fi IPv4 address, not
-`127.0.0.1`. The sketch defaults to `10.140.96.1` because that was the previously
-verified hotspot address in this setup. Check it again with `ipconfig`; update
-`MQTT_BROKER` in the sketch if it changed.
+`127.0.0.1`. The example secrets header defaults to `10.140.96.1` because that was the previously
+verified hotspot address in this setup. Check it again with `ipconfig`; update the
+four `ISL_MQTT_BROKER_IP_*` values in `secrets.h` if it changed.
 
 Mosquitto must listen on the laptop's hotspot/LAN interface, allow the configured
 user to subscribe to `isl/command/v1` and publish to `isl/ack/v1`, and be allowed

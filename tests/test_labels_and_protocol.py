@@ -27,7 +27,7 @@ def test_safe_iot_command_requires_explicit_allowlist():
         build_command(capture_id="cap-test", source_label="court", confidence=.99,
                       label_commands=mapping, now=1800000000)
     with pytest.raises(ValueError):
-        build_command(capture_id="cap-test", source_label="hello", confidence=.69,
+        build_command(capture_id="cap-test", source_label="hello", confidence=.29,
                       label_commands=mapping, now=1800000000)
 
 
@@ -57,7 +57,7 @@ def test_iot_simulator_rejects_low_confidence_and_non_object():
     mapping = {"hello": "LED_BLINK", "thankyou": "LED_BLINK_THREE"}
     simulator = SimulatedESP32(mapping)
     low = build_command(capture_id="cap-4", source_label="hello", confidence=.71, label_commands=mapping, now=1800000000)
-    low["confidence"] = .40
+    low["confidence"] = .29
     assert simulator.process(low, now=1800000001)["detail"] == "confidence_out_of_range"
     assert simulator.process("not-json", now=1800000001)["status"] == "rejected"
 

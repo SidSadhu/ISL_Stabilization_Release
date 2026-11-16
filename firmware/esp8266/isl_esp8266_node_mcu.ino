@@ -249,13 +249,13 @@ void handleCommand(const byte* payload, unsigned int length) {
     reject(commandId, "confidence_out_of_range");
     return;
   }
-  if (!doc["issued_at"].is<double>() && !doc["issued_at"].is<long>() &&
-      !doc["issued_at"].is<unsigned long>()) {
+  // Epoch timestamps must be JSON integers. On ESP8266, double is 32-bit
+  // float, which cannot preserve seconds at current Unix-epoch magnitudes.
+  if (!doc["issued_at"].is<long>() && !doc["issued_at"].is<unsigned long>()) {
     reject(commandId, "invalid_issued_at");
     return;
   }
-  if (!doc["expires_at"].is<double>() && !doc["expires_at"].is<long>() &&
-      !doc["expires_at"].is<unsigned long>()) {
+  if (!doc["expires_at"].is<long>() && !doc["expires_at"].is<unsigned long>()) {
     reject(commandId, "invalid_expires_at");
     return;
   }
@@ -264,12 +264,14 @@ void handleCommand(const byte* payload, unsigned int length) {
     return;
   }
 
-  const double issuedAt = doc["issued_at"].as<double>();
-  const double expiresAt = doc["expires_at"].as<double>();
-  const double now = static_cast<double>(time(nullptr));
-  if (!isfinite(issuedAt) || !isfinite(expiresAt) ||
-      issuedAt > now + 5.0 || expiresAt <= now ||
-      expiresAt <= issuedAt ||
+  const uint32_t issuedAt = doc["issued_at"].as<uint32_t>();
+  const uint32_t expiresAt = doc["expires_at"].as<uint32_t>();
+  const uint32_t now = static_cast<uint32_t>(time(nullptr));
+  if (issuedAt > now && issuedAt - now > 5U) {
+    reject(commandId, "invalid_or_expired_time_window");
+    return;
+  }
+  if (expiresAt <= now || expiresAt <= issuedAt ||
       expiresAt - issuedAt > MAX_COMMAND_TTL_SECONDS) {
     reject(commandId, "invalid_or_expired_time_window");
     return;

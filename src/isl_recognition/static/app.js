@@ -662,7 +662,6 @@
     stopFrameSender();
     if (capturing && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({type:'cancel'}));
     if (submitting) { message('Clip processing is underway; wait for its result before retrying.', ''); return; }
-    if (submitting) { message('Clip processing is underway; wait for its result before retrying.', ''); return; }
     onCaptureEnded('Ready to retry');
     clearPreviousResultForNewAttempt();
     $('predictionLabel').textContent = 'No gesture submitted';

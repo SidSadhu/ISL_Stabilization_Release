@@ -91,11 +91,17 @@ def build_command(
         raise ValueError("Confidence is below the IoT command threshold or invalid")
     if not math.isfinite(ttl) or not 0.0 < ttl <= 30.0:
         raise ValueError("Command TTL must be finite and within (0, 30] seconds")
+    if not ttl.is_integer():
+        raise ValueError("Command TTL must use whole seconds for ESP8266 epoch precision")
     if not isinstance(capture_id, str) or not capture_id or len(capture_id) > 128:
         raise ValueError("Capture ID must be a non-empty string of at most 128 characters")
     timestamp = time.time() if now is None else float(now)
-    if not math.isfinite(timestamp):
-        raise ValueError("Command timestamp must be finite")
+    if not math.isfinite(timestamp) or timestamp < 0 or timestamp >= 2**32:
+        raise ValueError("Command timestamp must be a finite Unix epoch within uint32 range")
+    # ESP8266 uses a 32-bit float for double. A floating-point Unix epoch near
+    # 1.8e9 cannot preserve second-level precision, so the wire protocol sends
+    # integer epoch seconds and the firmware reads them as uint32_t.
+    issued_at = int(timestamp)
     return {
         "schema_version": SCHEMA_VERSION,
         "command_id": str(uuid.uuid4()),
@@ -103,8 +109,8 @@ def build_command(
         "source_label": source_label,
         "confidence": score,
         "capture_id": capture_id,
-        "issued_at": timestamp,
-        "expires_at": timestamp + ttl,
+        "issued_at": issued_at,
+        "expires_at": issued_at + int(ttl),
     }
 
 

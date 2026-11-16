@@ -1,8 +1,5 @@
 {
   "schema_version": "1.0",
-  "description": "Owner-selected local ESP8266 hardware demo. The backend pre-IoT lockdown remains enabled by default.",
-  "mappings": {
-    "hello": "HELLO_ACTION",
-    "time": "TIME_ACTION"
-  }
+  "description": "Default pre-IoT release mapping. Leave empty; local hardware demos use a separate explicit mapping profile.",
+  "mappings": {}
 }

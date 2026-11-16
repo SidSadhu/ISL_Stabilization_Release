@@ -308,7 +308,7 @@ def test_mqtt_publish_failure_is_recorded_but_recognition_survives(tmp_path):
     with TestClient(create_app(svc)) as client:
         client.post('/api/iot/enable',json={"enabled":True})
         with client.websocket_connect('/ws/capture') as ws:
-            ws.receive_json(); ws.send_json({"type":"start"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
+            ws.receive_json(); ws.send_json({"type":"start", "expected_label":"hello"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
             while True:
                 msg=ws.receive_json()
                 if msg["type"]=="result": break
@@ -604,6 +604,7 @@ def test_iot_capture_cannot_be_reissued_after_history_reset(tmp_path):
     capture_id = "capture-replay-integration"
     recognition = {
         "capture_id": capture_id, "outcome": "accepted", "predicted_label": "hello",
+        "expected_label": "hello",
         "confidence": .95, "frame_count": 20,
     }
     svc.store.add_recognition(recognition)

@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .app_config import PROJECT_ROOT, Settings, resolve_label_map
 from .feature_extractor import MediaPipeFeatureExtractor
-from .iot_protocol import build_command, load_label_commands
+from .iot_protocol import build_command, expected_sign_matches, load_label_commands
 from .labels import invert_label_map, load_label_map
 from .mqtt_gateway import MQTTGateway
 from .preprocess import preprocess_feature_sequence
@@ -329,6 +329,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
             "iot_mapping_count": len(svc.iot_label_commands),
             "iot_mapping_error": svc.iot_mapping_error,
             "iot_min_confidence": svc.settings.iot_min_confidence,
+            "iot_expected_sign_match_required": True,
             "confidence_threshold_is_calibrated": False,
             "database_path": svc.settings.database_path.as_posix() if isinstance(svc.settings.database_path, Path) else svc.settings.database_path,
             "mqtt_configured": bool(svc.settings.mqtt_host and svc.settings.mqtt_port),
@@ -974,12 +975,21 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                     await app.state.capture_lock.acquire()
                     lock_acquired = True
                     camera_settings = _safe_camera_settings(message.get("camera_settings"))
+                    expected_label = message.get("expected_label")
+                    if expected_label is not None and (
+                        not isinstance(expected_label, str) or expected_label not in svc.labels
+                    ):
+                        await send({
+                            "type": "error", "code": "invalid_expected_label",
+                            "message": "expected_label must be null or an exact official INCLUDE-50 label.",
+                        })
+                        continue
                     capture = {
                         "capture_id": str(uuid.uuid4()), "jpeg_frames": [], "frames_dropped": 0,
                         "extraction_failures": 0, "started_monotonic": time.monotonic(),
                         "started_epoch": time.time(), "accepting": True, "last_received_timestamp": None,
                         "frames_received": 0, "client_frames_dropped": 0,
-                        "camera_settings": camera_settings,
+                        "camera_settings": camera_settings, "expected_label": expected_label,
                     }
                     await send({
                         "type": "capture_started", "capture_id": capture["capture_id"],
@@ -1055,14 +1065,9 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                     if not isinstance(save_debug, bool):
                         await send({"type": "error", "code": "invalid_debug_save", "message": "save_debug must be a boolean."})
                         continue
-                    expected_label = message.get("expected_label")
-                    if expected_label is not None and (not isinstance(expected_label, str) or len(expected_label) > 64):
-                        await send({"type": "error", "code": "invalid_expected_label", "message": "expected_label must be a short string or null."})
-                        continue
                     if capture is not None:
                         capture["client_frames_dropped"] = client_drops
                         capture["save_debug"] = save_debug
-                        capture["expected_label"] = expected_label
                         capture["camera_settings"] = _safe_camera_settings(message.get("camera_settings")) or capture.get("camera_settings")
                         capture["stopped_monotonic"] = time.monotonic()
                     await finish_capture(diagnostic_mode=diagnostic_mode)
@@ -1133,6 +1138,17 @@ async def maybe_issue_iot_command(svc: RuntimeServices, result: dict[str, Any]) 
         return {"status": "disabled", "message": "IoT is OFF. No command was published."}
     if result.get("outcome") != "accepted" or result.get("status") != "accepted":
         return {"status": "rejected", "message": "Capture result was not accepted; no command was published."}
+    expected_label = result.get("expected_label")
+    if not isinstance(expected_label, str) or not expected_label:
+        return {
+            "status": "expected_sign_required",
+            "message": "Select an expected INCLUDE-50 sign before capture; no device command was published.",
+        }
+    if not expected_sign_matches(label, expected_label):
+        return {
+            "status": "expected_sign_mismatch",
+            "message": f"Predicted sign '{label}' does not match expected sign '{expected_label}'. No device command was published.",
+        }
     if label not in svc.iot_label_commands:
         return {"status": "not_mapped", "message": "This accepted label has no approved IoT mapping."}
     try:

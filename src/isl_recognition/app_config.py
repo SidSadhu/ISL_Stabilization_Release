@@ -35,7 +35,7 @@ class Settings:
     # 14/14 accepted clips correct (100% selective accuracy). This DOES NOT imply 100%
     # real-world accuracy. Tune on a proper validation set before any production use.
     # The UI always shows the raw score and an UNCALIBRATED warning.
-    confidence_threshold: float = float(os.getenv("ISL_CONFIDENCE_THRESHOLD", "0.30"))  # Default was "0.40"
+    confidence_threshold: float = float(os.getenv("ISL_CONFIDENCE_THRESHOLD", "0.30"))  # Shared local-demo recognition default is 0.30
 
     min_capture_frames: int = int(os.getenv("ISL_MIN_CAPTURE_FRAMES", "12"))
     max_capture_seconds: float = float(os.getenv("ISL_MAX_CAPTURE_SECONDS", "6.0"))

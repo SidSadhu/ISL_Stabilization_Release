@@ -256,7 +256,7 @@
       client_frames_dropped:clientDropped,
       diagnostic_mode:Boolean($('diagnosticOverride')?.checked),
       save_debug:Boolean($('saveDebugCapture')?.checked),
-      expected_label:expectedLabel || null,
+
       camera_settings:window._islCameraSettings || null
     }));
   }
@@ -363,7 +363,7 @@
       throw new Error('The capture connection closed during the countdown. Please retry.');
     }
     if (overlay) overlay.hidden = true;
-    ws.send(JSON.stringify({type:'start'}));
+    ws.send(JSON.stringify({type:'start', expected_label:expectedLabel || null}));
   }
   function onCaptureEnded(status) {
     cancelCaptureCountdown();
@@ -378,6 +378,14 @@
   }
 
   function renderResult(r) {
+    // Reflect the server-bound target for this capture (selection is frozen at START).
+    expectedLabel = (typeof r.expected_label === 'string' && r.expected_label) ? r.expected_label : null;
+    const expectedItem = referenceClasses.find((item) => item.label === expectedLabel);
+    $('expectedSignStatus').textContent = expectedLabel
+      ? `Expected sign: ${expectedItem?.display_name || expectedLabel}`
+      : 'No expected sign selected';
+    $('expectedSignStatus').className = expectedLabel ? 'expected-status is-set' : 'expected-status';
+    if (expectedLabel) $('referenceClass').value = expectedLabel;
     const label = r.predicted_label || '—';
     $('predictionWord').textContent = label;
     const thresh = (typeof window._confidenceThreshold === 'number') ? window._confidenceThreshold : 0.30;
@@ -447,7 +455,7 @@
     if (!r) { $('iotMessage').textContent = 'No command requested.'; $('iotMessage').className = 'iot-status'; return; }
     latestCommandId = r.command_id || null;
     $('iotMessage').textContent = `${r.status || 'unknown'} — ${r.message || ''}`;
-    $('iotMessage').className = `iot-status ${['pending','acknowledged'].includes(r.status) ? 'good' : ['publish_failed','rejected'].includes(r.status) ? 'bad' : ''}`.trim();
+    $('iotMessage').className = `iot-status ${['pending','acknowledged'].includes(r.status) ? 'good' : ['publish_failed','rejected','expected_sign_required','expected_sign_mismatch'].includes(r.status) ? 'bad' : ''}`.trim();
     loadIoTHistory(); refreshHealth();
   }
 
@@ -502,7 +510,8 @@
     if (!item) return;
     $('referenceClass').value = item.label;
     selectedReference = null;
-    $('setExpectedButton').disabled = true;
+    // Expected-sign selection does not depend on a local video being downloaded.
+    $('setExpectedButton').disabled = false;
     $('referenceVideo').pause(); $('referenceVideo').removeAttribute('src'); $('referenceVideo').load();
     $('referenceVideoPlaceholder').hidden = false;
     $('referenceVideoTitle').textContent = item.display_name;

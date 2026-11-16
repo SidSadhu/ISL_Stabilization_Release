@@ -321,8 +321,10 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
             "max_frames": 169,
             "max_capture_seconds": svc.settings.max_capture_seconds,
             "confidence_threshold": svc.settings.confidence_threshold,
-            "iot_enabled": bool(svc.iot_enabled and not svc.settings.pre_iot_lockdown),
-            "pre_iot_lockdown": svc.settings.pre_iot_lockdown,
+            "iot_enabled": bool(svc.iot_enabled and not svc.settings.iot_lock_active),
+            "pre_iot_lockdown": svc.settings.iot_lock_active,
+            "base_pre_iot_lockdown": svc.settings.pre_iot_lockdown,
+            "iot_hardware_demo_enabled": svc.settings.iot_hardware_demo_enabled,
             "iot_mapping_configured": len(svc.iot_label_commands) == 2,
             "iot_mapping_count": len(svc.iot_label_commands),
             "iot_mapping_error": svc.iot_mapping_error,
@@ -454,7 +456,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
         svc: RuntimeServices = app.state.services
         if not isinstance(payload.get("enabled"), bool):
             raise HTTPException(status_code=400, detail="Body must contain boolean 'enabled'.")
-        if svc.settings.pre_iot_lockdown:
+        if svc.settings.iot_lock_active:
             # Return a visible policy response; the command path also enforces the lock.
             svc.iot_enabled = False
             return {
@@ -1124,7 +1126,7 @@ async def maybe_issue_iot_command(svc: RuntimeServices, result: dict[str, Any]) 
     capture_id = result.get("capture_id")
     # Defense in depth: pre-IoT release lockdown takes precedence over both the
     # browser control and the process-local enabled flag.
-    if svc.settings.pre_iot_lockdown:
+    if svc.settings.iot_lock_active:
         svc.iot_enabled = False
         return {"status": "suppressed", "message": "Pre-IoT lockdown is active. No device command was published."}
     if not svc.iot_enabled:

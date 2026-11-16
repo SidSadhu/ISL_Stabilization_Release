@@ -3,11 +3,11 @@
 **Version:** 1.0.0-rc3 (implementation package, 6 November 2026)
 **Scope:** manual Start/Stop capture of one isolated INCLUDE-50 sign per inference. This is not continuous sign-language translation.
 
-This package consolidates the recognition web app, MediaPipe diagnostics, INCLUDE-50 reference gallery, manual capture UX, evaluation tooling, and fail-closed pre-IoT safety lock. It retains the 50-class classifier and 134-D/169-frame input contract. Only two owner-selected labels may later be routed to IoT; the default map is empty.
+This package consolidates the recognition web app, MediaPipe diagnostics, INCLUDE-50 reference gallery, manual capture UX, evaluation tooling, and fail-closed pre-IoT safety lock. It retains the 50-class classifier and 134-D/169-frame input contract. Only two owner-selected labels are routed to the experimental hardware demo on this feature branch (`hello` and `time`). The base/main release remains default-off; this branch still requires explicit local opt-in.
 
 ## Current implementation and handoff plan
 
-Read [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) for the phased implementation and acceptance gates, [`IMPLEMENTATION_WORKLOG.md`](IMPLEMENTATION_WORKLOG.md) for changes actually made, and [`docs/ENGINEERING_DECISIONS.md`](docs/ENGINEERING_DECISIONS.md) for scope decisions. The default `config/iot_label_map.json` intentionally contains no mappings, and application-level pre-IoT lockdown remains enabled.
+Read [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) for the phased implementation and acceptance gates, [`IMPLEMENTATION_WORKLOG.md`](IMPLEMENTATION_WORKLOG.md) for changes actually made, and [`docs/ENGINEERING_DECISIONS.md`](docs/ENGINEERING_DECISIONS.md) for scope decisions. This feature branch configures exactly two mappings in `config/iot_label_map.json`. The application-level pre-IoT lockdown remains enabled by default and can be disabled only through the explicit local-demo setting documented in `docs/ESP8266_IOT_DEMO.md`.
 
 The primary webapp uses manual Start/Stop, buffers JPEG frames for one capture, then runs sequential MediaPipe extraction and one model inference after Stop. It does not currently use an asynchronous bounded frame queue.
 
@@ -73,9 +73,9 @@ Open `http://127.0.0.1:8000`. Check `http://127.0.0.1:8000/api/health`. A usable
 
 The app uses a 2-second preparation countdown and up to 6 seconds of recorded video. The recording maximum is a user-experience setting, not a requirement to capture 169 frames. Every captured frame is extracted after recording; the classifier input is padded to 169 rows × 134 features.
 
-## Pre-IoT lock
+## Pre-IoT lock and local hardware demo
 
-The pre-IoT lock is hard-coded `True` for this release and enforced by both the UI and backend; it cannot be turned off via `.env`. The backend rejects enable attempts and suppresses device commands even if a process-local flag is accidentally set. Keep `ISL_IOT_ENABLED=false`. A later IoT release requires a separate code review, modified safety gates, and its own hardware tests.
+The pre-IoT lock defaults to `True` and is enforced by both the UI and backend. It remains on unless the project owner explicitly sets `ISL_PRE_IOT_LOCKDOWN=false` for a trusted, local hardware demonstration. The IoT process toggle still starts OFF after every application launch and must be enabled separately in the UI. Do not disable the lock on an internet-facing or production deployment. This feature branch's NodeMCU demo is experimental and does not change the production-readiness gates. Follow `docs/ESP8266_IOT_DEMO.md` for mapping, broker, firmware and physical acceptance instructions.
 
 ## Confidence policy
 

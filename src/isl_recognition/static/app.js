@@ -63,9 +63,15 @@
       $('iotToggle').checked = Boolean(h.iot_enabled);
       $('iotToggle').disabled = Boolean(h.pre_iot_lockdown);
       $('iotToggle').title = h.pre_iot_lockdown ? 'IoT is intentionally locked in this pre-IoT release.' : 'Enable or disable IoT commands for this app session.';
-      if (h.pre_iot_lockdown) {
-        $('iotMessage').textContent = 'Pre-IoT safety lock active. No device command can be published.';
-        $('iotMessage').className = 'iot-status';
+      const policyHint = $('iotPolicyHint');
+      if (policyHint) {
+        if (h.pre_iot_lockdown) {
+          policyHint.textContent = 'Safety lock active. The backend will not publish device commands; recognition and text output remain available.';
+        } else if (h.iot_mapping_error || Number(h.iot_mapping_count) !== 2) {
+          policyHint.textContent = 'Local demo override is active, but the two-sign hardware mapping is not valid. Device commands remain unavailable until the mapping is fixed.';
+        } else {
+          policyHint.textContent = 'Local ESP8266 demo profile is active. IoT starts OFF and must be enabled separately. Every new capture re-checks the expected sign, confidence and approved mapping.';
+        }
       }
       setDot('modelDot', h.model_ready ? 'good' : 'bad');
       setDot('visionDot', h.extractor_ready ? 'good' : 'bad');
@@ -565,6 +571,14 @@
     $('captureDuration').textContent = '0.0 s';
     $('progressBar').style.width = '0%';
     renderExpectedComparison('—');
+    latestCommandId = null;
+    const iotToggleOn = Boolean($('iotToggle').checked) && !window.islPreIoTLockdown;
+    $('iotMessage').textContent = window.islPreIoTLockdown
+      ? 'Safety lock active. No device command can be published.'
+      : (iotToggleOn
+        ? 'New attempt ready. This capture will be checked again from the beginning.'
+        : 'IoT is OFF. Recognition and text output remain available.');
+    $('iotMessage').className = 'iot-status';
   }
 
   function renderExpectedComparison(predictedLabel) {
@@ -648,7 +662,10 @@
     stopFrameSender();
     if (capturing && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({type:'cancel'}));
     if (submitting) { message('Clip processing is underway; wait for its result before retrying.', ''); return; }
-    onCaptureEnded('Ready to retry'); $('predictionWord').textContent = '—'; $('predictionLabel').textContent = 'No gesture submitted'; $('confidenceValue').textContent = '—'; $('confidenceBar').style.width='0%'; if ($('candidateSection')) $('candidateSection').hidden = true; $('outcomeValue').textContent='Waiting'; $('inferenceLatencyValue').textContent='—'; $('processingLatencyValue').textContent='—'; $('endToEndLatencyValue').textContent='—'; $('poseValue').textContent='—'; $('handValue').textContent='—'; $('progressBar').style.width='0%';
+    if (submitting) { message('Clip processing is underway; wait for its result before retrying.', ''); return; }
+    onCaptureEnded('Ready to retry');
+    clearPreviousResultForNewAttempt();
+    $('predictionLabel').textContent = 'No gesture submitted';
   });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) return;

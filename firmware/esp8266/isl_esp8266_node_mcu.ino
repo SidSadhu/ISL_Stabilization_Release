@@ -267,7 +267,7 @@ void handleCommand(const byte* payload, unsigned int length) {
   const uint32_t issuedAt = doc["issued_at"].as<uint32_t>();
   const uint32_t expiresAt = doc["expires_at"].as<uint32_t>();
   const uint32_t now = static_cast<uint32_t>(time(nullptr));
-  Serial.printf("[TIME] issued=%lu expires=%lu device_now=%lu ttl=%lu\\n",
+  Serial.printf("[TIME] issued=%lu expires=%lu device_now=%lu ttl=%lu\n",
                 static_cast<unsigned long>(issuedAt),
                 static_cast<unsigned long>(expiresAt),
                 static_cast<unsigned long>(now),

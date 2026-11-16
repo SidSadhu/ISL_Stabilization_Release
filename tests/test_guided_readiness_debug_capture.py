@@ -104,7 +104,9 @@ def test_capture_patch_keeps_classifier_contract_and_adds_readiness_and_diagnost
     assert '"model_input_169x134.csv"' in webapp_source
     assert "preprocess_feature_sequence(sequence, max_frame_len=169, feature_dim=134)" in webapp_source
     assert "feature_dim: int = 134" in preprocess
-    assert '"0.40"' in (ROOT / "src/isl_recognition/app_config.py").read_text(encoding="utf-8")
+    config_source = (ROOT / "src/isl_recognition/app_config.py").read_text(encoding="utf-8")
+    assert 'ISL_CONFIDENCE_THRESHOLD", "0.30"' in config_source
+    assert 'ISL_IOT_MIN_CONFIDENCE", "0.30"' in config_source
 
 
 
@@ -118,11 +120,14 @@ def test_opt_in_debug_save_websocket_writes_one_local_bundle(tmp_path, monkeypat
     with TestClient(webapp.create_app(svc)) as client:
         with client.websocket_connect("/ws/capture") as ws:
             ws.receive_json()
-            ws.send_json({"type": "start", "camera_settings": {"width": 1280, "height": 720, "frameRate": 25}})
+            ws.send_json({
+                "type": "start", "expected_label": "hello",
+                "camera_settings": {"width": 1280, "height": 720, "frameRate": 25},
+            })
             ws.receive_json()
             send_valid_frames(ws, 14)
             ws.send_json({
-                "type": "stop", "save_debug": True, "expected_label": "hello",
+                "type": "stop", "save_debug": True,
                 "camera_settings": {"width": 1280, "height": 720, "frameRate": 25},
             })
             while True:

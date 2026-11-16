@@ -56,7 +56,7 @@ constexpr uint8_t BUZZER_PIN = D7;         // GPIO13, active LOW
 constexpr uint8_t OLED_ADDRESS = 0x3C;
 constexpr uint32_t HELLO_ACTION_MS = 2200;
 constexpr uint32_t HELLO_BEEP_MS = 140;
-constexpr uint32_t TIME_ACTION_MS = 10000;
+constexpr uint32_t TIME_ACTION_MS = 30000;  // Keep the live clock visible for 30 seconds
 constexpr float MIN_IOT_CONFIDENCE = 0.30f;
 constexpr uint32_t MAX_COMMAND_TTL_SECONDS = 30;
 constexpr size_t MQTT_BUFFER_SIZE = 768;
@@ -207,12 +207,27 @@ void refreshClockDisplay() {
     showLines("TIME", "Waiting for NTP sync");
     return;
   }
+
   time_t nowUtc = time(nullptr);
   struct tm localParts;
   localtime_r(&nowUtc, &localParts);
   char clockText[16];
   strftime(clockText, sizeof(clockText), "%H:%M:%S", &localParts);
-  showLines("TIME", String(clockText), "Asia/Kolkata");
+
+  // Use a larger centered 2x font for the 8-character clock on the 128x64 OLED.
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("CURRENT TIME");
+  display.drawFastHLine(0, 12, 128, SSD1306_WHITE);
+  display.setTextSize(2);
+  display.setCursor(16, 25);
+  display.println(clockText);
+  display.setTextSize(1);
+  display.setCursor(34, 52);
+  display.println("Asia/Kolkata");
+  display.display();
 }
 
 void startTimeAction() {

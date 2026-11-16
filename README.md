@@ -69,7 +69,7 @@ If the script says it is already fixed, do not edit the upstream file manually.
 .\scripts\start_app.ps1
 ```
 
-Open `http://127.0.0.1:8000`. Check `http://127.0.0.1:8000/api/health`. A usable recognition runtime requires `model_ready=true`, `label_map_ready=true`, and `extractor_ready=true`. Use the reference gallery to select a class and explicitly set it as the expected sign before comparing a practice attempt.
+Open `http://127.0.0.1:8000`. Check `http://127.0.0.1:8000/api/health`. A usable recognition runtime requires `model_ready=true`, `label_map_ready=true`, and `extractor_ready=true`. Use the reference gallery to select a class and explicitly set it as the expected sign before capture; IoT remains blocked unless the backend prediction matches that target exactly.
 
 The app uses a 2-second preparation countdown and up to 6 seconds of recorded video. The recording maximum is a user-experience setting, not a requirement to capture 169 frames. Every captured frame is extracted after recording; the classifier input is padded to 169 rows × 134 features.
 
@@ -79,7 +79,7 @@ The base release policy remains hard-coded as `pre_iot_lockdown: bool = True`. T
 
 ## Confidence policy
 
-The current web text-recognition threshold is `0.40`, explicitly marked **uncalibrated**. The independent IoT command threshold defaults to `0.70` and is also provisional. A predicted label and top-five candidate list are shown separately from accepted/rejected status; a score does not prove correctness. Evaluate the exact 77-item official validation split and report risk/coverage before selecting any threshold.
+The current local demo uses `0.30` (30%) for both recognition (`ISL_CONFIDENCE_THRESHOLD`) and IoT command confidence (`ISL_IOT_MIN_CONFIDENCE`). Both are provisional and explicitly **uncalibrated**. IoT actuation additionally requires an expected INCLUDE-50 label selected before capture to exactly match the backend prediction, an accepted result and an approved mapping. A predicted label, top-five candidates or confidence score does not prove correctness. Evaluate the exact 77-item official validation split and report risk/coverage before treating this threshold as reliable.
 
 ## Consolidated stabilization campaign
 
@@ -134,4 +134,4 @@ Phase 1 was executed on the target Windows environment: the 77-item official INC
 
 Phase 2 root-cause analysis and the resumable four-path all-77 feature-provenance runner are included. Run `engineering/PHASE2_FEATURE_PROVENANCE_RUNBOOK.md` from the project root to compare native application extraction, resized PNG, resized JPEG q92, and the pinned upstream generator through the modern MediaPipe compatibility adapter. This q92 OpenCV branch approximates (but is not identical to) browser Canvas. The historical MediaPipe build used to create training keypoints remains unverified.
 
-The model, checkpoint, INCLUDE-50 ordering, 134-D feature layout, 169-frame model input, and provisional thresholds remain unchanged. IoT remains disabled. The recognition-demo release remains NO-GO pending target-Windows Phase 2 execution and live-webcam validation.
+The model, checkpoint, INCLUDE-50 ordering, 134-D feature layout and 169-frame model input remain unchanged. Both local demo confidence gates use 0.30 and IoT requires an exact expected-sign match before actuation. IoT remains disabled by default. The recognition-demo release remains NO-GO pending target-Windows Phase 2 execution and live-webcam validation.

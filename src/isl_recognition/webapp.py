@@ -969,12 +969,6 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                     if not svc.extractor_ready:
                         await send({"type": "error", "code": "extractor_unavailable", "message": svc.extractor_error or "MediaPipe extractor is unavailable."})
                         continue
-                    if app.state.capture_lock.locked():
-                        await send({"type": "error", "code": "another_capture_active", "message": "Only one capture/inference session is allowed at a time."})
-                        continue
-                    await app.state.capture_lock.acquire()
-                    lock_acquired = True
-                    camera_settings = _safe_camera_settings(message.get("camera_settings"))
                     expected_label = message.get("expected_label")
                     if expected_label is not None and (
                         not isinstance(expected_label, str) or expected_label not in svc.labels
@@ -984,6 +978,12 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                             "message": "expected_label must be null or an exact official INCLUDE-50 label.",
                         })
                         continue
+                    if app.state.capture_lock.locked():
+                        await send({"type": "error", "code": "another_capture_active", "message": "Only one capture/inference session is allowed at a time."})
+                        continue
+                    await app.state.capture_lock.acquire()
+                    lock_acquired = True
+                    camera_settings = _safe_camera_settings(message.get("camera_settings"))
                     capture = {
                         "capture_id": str(uuid.uuid4()), "jpeg_frames": [], "frames_dropped": 0,
                         "extraction_failures": 0, "started_monotonic": time.monotonic(),

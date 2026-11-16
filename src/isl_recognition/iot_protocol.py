@@ -98,9 +98,9 @@ def build_command(
     timestamp = time.time() if now is None else float(now)
     if not math.isfinite(timestamp) or timestamp < 0 or timestamp >= 2**32:
         raise ValueError("Command timestamp must be a finite Unix epoch within uint32 range")
-    # ESP8266 uses a 32-bit float for double. A floating-point Unix epoch near
-    # 1.8e9 cannot preserve second-level precision, so the wire protocol sends
-    # integer epoch seconds and the firmware reads them as uint32_t.
+    # Use integer UTC epoch seconds on the wire. The protocol needs only
+    # second-level precision; integers keep expiry arithmetic exact and avoid
+    # floating-point representation differences across embedded JSON runtimes.
     issued_at = int(timestamp)
     return {
         "schema_version": SCHEMA_VERSION,

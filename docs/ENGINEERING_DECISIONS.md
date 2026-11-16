@@ -29,15 +29,15 @@
 
 **Reason:** The classifier retains all 50 labels. Every accepted known label can be displayed as text; only the two explicitly mapped labels can request hardware actions. User sign selection is not delegated to the engineering implementation.
 
-## Decision 5 — Independent IoT confidence threshold
+## Decision 5 — Shared provisional confidence threshold (updated 17 November 2026)
 
-**Decision:** IoT uses its own minimum confidence setting (`ISL_IOT_MIN_CONFIDENCE=0.70` provisional), separate from the app's recognition threshold. The existing classifier threshold (`ISL_CONFIDENCE_THRESHOLD=0.40` in the current app configuration) remains explicitly uncalibrated pending full validation.
+**Decision:** The local demo uses `ISL_CONFIDENCE_THRESHOLD=0.30` for recognition and `ISL_IOT_MIN_CONFIDENCE=0.30` for IoT command confidence. Both values are provisional and explicitly uncalibrated.
 
-**Reason:** A text prediction can be useful for display yet not reliable enough to trigger a physical action. No single score should automatically turn on hardware. The 0.70 IoT value is a conservative engineering guard for pre-release testing, not a statistically calibrated guarantee.
+**Reason:** The project owner requested the same 30% threshold for recognition and IoT. This is a model confidence score, not a claim of 30% real-world accuracy. Actuation is additionally guarded by an exact expected-sign match, accepted recognition outcome, the two-label allowlist, cooldown, duplicate protection, command expiry, authenticated broker ACLs and the default-off safety lock. Independent validation is still required to calibrate this operating point.
 
 ## Decision 6 — Fail-closed IoT behaviour
 
-**Decision:** Do not enable IoT unless exactly two valid mappings are loaded. Reject unmapped labels, failed/rejected captures, scores below the IoT threshold, duplicates, expired commands, cooldown violations and invalid protocol payloads. Keep pre-IoT code-level lockdown enabled in this package.
+**Decision:** Do not enable IoT unless exactly two valid mappings are loaded. Reject missing expected-sign selections, expected/predicted label mismatches, unmapped labels, failed/rejected captures, scores below the IoT threshold, duplicates, expired commands, cooldown violations and invalid protocol payloads. The expected label is validated against the official INCLUDE-50 vocabulary and bound to the capture at START. Keep pre-IoT code-level lockdown enabled in this package.
 
 **Reason:** Physical actuation has a higher consequence than text display. Missing or malformed config must not silently fall back to historical mappings.
 

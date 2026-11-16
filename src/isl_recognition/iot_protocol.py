@@ -11,9 +11,13 @@ from typing import Any
 
 SCHEMA_VERSION = "1.0"
 SUPPORTED_COMMANDS = {
+    # Legacy simulator commands remain supported for backwards compatibility.
     "LED_BLINK": 1,
     "LED_BLINK_TWICE": 2,
     "LED_BLINK_THREE": 3,
+    # Physical ESP8266 demo actions.
+    "HELLO_ACTION": 0,
+    "TIME_ACTION": 0,
 }
 ACK_STATUSES = {"acknowledged", "rejected", "duplicate"}
 
@@ -155,6 +159,7 @@ class SimulatedESP32:
         self.seen: set[str] = set()
         self.seen_captures: set[str] = set()
         self.led_blinks = 0
+        self.actions: list[str] = []
 
     def process(self, payload: Any, *, now: float | None = None) -> dict[str, Any]:
         command_id = payload.get("command_id") if isinstance(payload, dict) else None
@@ -175,14 +180,32 @@ class SimulatedESP32:
             else:
                 self.seen.add(command_id)
                 self.seen_captures.add(str(payload["capture_id"]))
-                pulse_count = SUPPORTED_COMMANDS[str(payload["command"])]
-                self.led_blinks += pulse_count
-                details = {
-                    1: "simulated_led_blink_processed",
-                    2: "simulated_led_double_blink_processed",
-                    3: "simulated_led_triple_blink_processed",
-                }
-                status, detail = "acknowledged", details[pulse_count]
+                command_name = str(payload["command"])
+                if command_name in {"LED_BLINK", "LED_BLINK_TWICE", "LED_BLINK_THREE"}:
+                    pulse_count = SUPPORTED_COMMANDS[command_name]
+                    self.led_blinks += pulse_count
+                    details = {
+                        1: "simulated_led_blink_processed",
+                        2: "simulated_led_double_blink_processed",
+                        3: "simulated_led_triple_blink_processed",
+                    }
+                    detail = details[pulse_count]
+                elif command_name == "HELLO_ACTION":
+                    self.actions.append(command_name)
+                    detail = "simulated_hello_action_processed"
+                elif command_name == "TIME_ACTION":
+                    self.actions.append(command_name)
+                    detail = "simulated_time_action_processed"
+                else:  # Defensive: validate_command should already reject this.
+                    status, detail = "rejected", "unsupported_command"
+                    return {
+                        "schema_version": SCHEMA_VERSION,
+                        "command_id": command_id or "",
+                        "status": status,
+                        "detail": detail,
+                        "timestamp_utc": utc_iso(now),
+                    }
+                status = "acknowledged"
         return {
             "schema_version": SCHEMA_VERSION,
             "command_id": command_id or "",

@@ -180,7 +180,7 @@ that the subscriber processed the command.
    UI toggle.
 3. Perform `hello` with a confidence at or above 0.70. Confirm green LED, OLED
    `HELLO!`, short beep, and a correlated `acknowledged` event.
-4. Perform `time). Confirm yellow LED, live HH:MM:SS clock in Asia/Kolkata time,
+4. Perform `time`. Confirm yellow LED, live HH:MM:SS clock in Asia/Kolkata time,
    no buzzer, and a correlated acknowledgement.
 5. Perform `quiet`. Confirm browser text only and no new IoT history event.
 6. Test a confidence below 0.70, an unavailable broker, and duplicate delivery.

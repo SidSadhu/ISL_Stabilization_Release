@@ -115,6 +115,8 @@ void showReady() {
 
 void publishAck(const String& commandId, const char* status,
                 const char* detail) {
+  Serial.printf("[MQTT ACK] id=%s status=%s detail=%s\\n",
+                commandId.c_str(), status, detail);
   StaticJsonDocument<320> ack;
   ack["schema_version"] = "1.0";
   ack["command_id"] = commandId;
@@ -206,6 +208,7 @@ void reject(const String& commandId, const char* reason) {
 }
 
 void handleCommand(const byte* payload, unsigned int length) {
+  Serial.printf("[MQTT] received command payload (%u bytes)\\n", length);
   if (length == 0 || length > MQTT_BUFFER_SIZE) {
     reject("", "invalid_payload_size");
     return;
@@ -282,6 +285,10 @@ void handleCommand(const byte* payload, unsigned int length) {
     publishAck(commandId, "duplicate", "command_or_capture_already_processed");
     return;
   }
+  if (!oledReady) {
+    reject(commandId, "oled_not_ready");
+    return;
+  }
   if (activeAction != ACTION_NONE) {
     reject(commandId, "device_action_busy");
     return;
@@ -304,11 +311,17 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
 void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) return;
+  Serial.printf("[Wi-Fi] connecting to SSID %s\\n", WIFI_SSID);
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   const uint32_t started = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - started < 15000) {
     delay(250);
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("[Wi-Fi] connected; NodeMCU IP: %s\\n", WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("[Wi-Fi] connection timed out; will retry");
   }
 }
 
@@ -326,7 +339,11 @@ void connectMQTT() {
   }
   if (connected) {
     mqtt.subscribe(COMMAND_TOPIC, 1);
+    Serial.printf("[MQTT] connected to %s:%u; subscribed %s\\n",
+                  MQTT_BROKER.toString().c_str(), MQTT_PORT, COMMAND_TOPIC);
     showLines("MQTT READY", WiFi.localIP().toString());
+  } else {
+    Serial.printf("[MQTT] connect failed, state=%d\\n", mqtt.state());
   }
 }
 

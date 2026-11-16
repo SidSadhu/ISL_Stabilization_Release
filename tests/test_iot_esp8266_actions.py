@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
+from types import SimpleNamespace
 
 import pytest
 from dataclasses import replace
@@ -11,9 +13,11 @@ from isl_recognition.app_config import Settings
 from isl_recognition.iot_protocol import (
     SimulatedESP32,
     build_command,
+    expected_sign_matches,
     load_label_commands,
     validate_command,
 )
+from isl_recognition.webapp import maybe_issue_iot_command
 
 
 LABELS = {"hello": 22, "time": 43, "quiet": 34}
@@ -28,8 +32,56 @@ def make_command(label: str = "hello", confidence: float = 0.91, now: float = 1_
         label_commands=MAPPINGS,
         now=now,
         ttl_seconds=10,
-        min_confidence=0.70,
+        min_confidence=0.30,
     )
+
+
+@pytest.mark.parametrize("predicted,expected,matched", [
+    ("hello", "hello", True),
+    ("time", "hello", False),
+    ("hello", "quiet", False),
+    ("hello", None, False),
+    ("hello", "Hello", False),
+])
+def test_expected_sign_match_is_exact_and_fails_closed(predicted, expected, matched):
+    assert expected_sign_matches(predicted, expected) is matched
+
+
+def test_iot_backend_rejects_prediction_that_does_not_match_expected_sign():
+    services = SimpleNamespace(
+        settings=SimpleNamespace(iot_lock_active=False, iot_min_confidence=0.30),
+        iot_enabled=True, iot_label_commands=MAPPINGS, last_iot_command_epoch=0.0, store=None, mqtt=None,
+    )
+    result = {
+        "capture_id": str(uuid.uuid4()), "predicted_label": "hello", "expected_label": "quiet",
+        "confidence": 0.99, "outcome": "accepted", "status": "accepted",
+    }
+    response = asyncio.run(maybe_issue_iot_command(services, result))
+    assert response["status"] == "expected_sign_mismatch"
+    assert services.mqtt is None
+
+
+def test_iot_backend_requires_expected_sign_before_actuation():
+    services = SimpleNamespace(
+        settings=SimpleNamespace(iot_lock_active=False),
+        iot_enabled=True, iot_label_commands=MAPPINGS, last_iot_command_epoch=0.0, store=None, mqtt=None,
+    )
+    result = {
+        "capture_id": str(uuid.uuid4()), "predicted_label": "hello", "expected_label": None,
+        "confidence": 0.99, "outcome": "accepted", "status": "accepted",
+    }
+    response = asyncio.run(maybe_issue_iot_command(services, result))
+    assert response["status"] == "expected_sign_required"
+    assert services.mqtt is None
+
+
+def test_iot_default_threshold_is_thirty_percent():
+    now = 1_800_000_000.0
+    command = build_command(
+        capture_id=str(uuid.uuid4()), source_label="hello", confidence=0.30,
+        label_commands=MAPPINGS, now=now,
+    )
+    assert validate_command(command, label_commands=MAPPINGS, now=now + 1) == (True, "validated")
 
 
 def test_load_selected_esp8266_mappings(tmp_path):
@@ -63,13 +115,13 @@ def test_build_and_validate_esp8266_commands(label, expected):
     assert command["command"] == expected
     assert command["source_label"] == label
     assert validate_command(
-        command, label_commands=MAPPINGS, now=now + 1, min_confidence=0.70
+        command, label_commands=MAPPINGS, now=now + 1, min_confidence=0.30
     ) == (True, "validated")
 
 
 def test_low_confidence_command_cannot_be_built():
     with pytest.raises(ValueError, match="Confidence"):
-        make_command(label="hello", confidence=0.69)
+        make_command(label="hello", confidence=0.29)
 
 
 def test_simulator_acknowledges_hello_and_time_once():
@@ -78,7 +130,7 @@ def test_simulator_acknowledges_hello_and_time_once():
         ("time", "TIME_ACTION"),
     ):
         command = make_command(label=label)
-        simulator = SimulatedESP32(MAPPINGS, min_confidence=0.70)
+        simulator = SimulatedESP32(MAPPINGS, min_confidence=0.30)
 
         first = simulator.process(command, now=command["issued_at"] + 1)
         second = simulator.process(command, now=command["issued_at"] + 1)
@@ -94,7 +146,7 @@ def test_expired_device_command_is_rejected_by_protocol():
         command,
         label_commands=MAPPINGS,
         now=command["expires_at"],
-        min_confidence=0.70,
+        min_confidence=0.30,
     )
     assert not ok
     assert reason == "command_expired"

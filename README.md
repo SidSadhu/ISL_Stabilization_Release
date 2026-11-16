@@ -3,11 +3,11 @@
 **Version:** 1.0.0-rc3 (implementation package, 6 November 2026)
 **Scope:** manual Start/Stop capture of one isolated INCLUDE-50 sign per inference. This is not continuous sign-language translation.
 
-This package consolidates the recognition web app, MediaPipe diagnostics, INCLUDE-50 reference gallery, manual capture UX, evaluation tooling, and fail-closed pre-IoT safety lock. It retains the 50-class classifier and 134-D/169-frame input contract. Only two owner-selected labels are routed to the experimental hardware demo on this feature branch (`hello` and `time`). The base/main release remains default-off; this branch still requires explicit local opt-in.
+This package consolidates the recognition web app, MediaPipe diagnostics, INCLUDE-50 reference gallery, manual capture UX, evaluation tooling, and fail-closed pre-IoT safety lock. It retains the 50-class classifier and 134-D/169-frame input contract. Only two owner-selected labels are routed by the experimental hardware demo on this feature branch (`hello` and `time`). The default mapping remains empty; this branch still requires a separate mapping profile and explicit local opt-in.
 
 ## Current implementation and handoff plan
 
-Read [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) for the phased implementation and acceptance gates, [`IMPLEMENTATION_WORKLOG.md`](IMPLEMENTATION_WORKLOG.md) for changes actually made, and [`docs/ENGINEERING_DECISIONS.md`](docs/ENGINEERING_DECISIONS.md) for scope decisions. This feature branch configures exactly two mappings in `config/iot_label_map.json`. The application-level pre-IoT lockdown remains enabled by default and can be disabled only through the explicit local-demo setting documented in `docs/ESP8266_IOT_DEMO.md`.
+Read [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) for the phased implementation and acceptance gates, [`IMPLEMENTATION_WORKLOG.md`](IMPLEMENTATION_WORKLOG.md) for changes actually made, and [`docs/ENGINEERING_DECISIONS.md`](docs/ENGINEERING_DECISIONS.md) for scope decisions. The default `config/iot_label_map.json` remains empty. The separate `config/iot_label_map.esp8266.json` profile contains the two demo mappings. The hard-coded pre-IoT release lock remains enabled; the optional local-demo override and effective-lock handling are documented in `docs/ESP8266_IOT_DEMO.md`.
 
 The primary webapp uses manual Start/Stop, buffers JPEG frames for one capture, then runs sequential MediaPipe extraction and one model inference after Stop. It does not currently use an asynchronous bounded frame queue.
 
@@ -75,7 +75,7 @@ The app uses a 2-second preparation countdown and up to 6 seconds of recorded vi
 
 ## Pre-IoT lock and local hardware demo
 
-The pre-IoT lock defaults to `True` and is enforced by both the UI and backend. It remains on unless the project owner explicitly sets `ISL_PRE_IOT_LOCKDOWN=false` for a trusted, local hardware demonstration. The IoT process toggle still starts OFF after every application launch and must be enabled separately in the UI. Do not disable the lock on an internet-facing or production deployment. This feature branch's NodeMCU demo is experimental and does not change the production-readiness gates. Follow `docs/ESP8266_IOT_DEMO.md` for mapping, broker, firmware and physical acceptance instructions.
+The base release policy remains hard-coded as `pre_iot_lockdown: bool = True`. The NodeMCU feature branch adds a separate local-only profile enabled with `ISL_IOT_HARDWARE_DEMO=true` and `ISL_IOT_LABEL_MAP=config/iot_label_map.esp8266.json`. The effective IoT lock is bypassed only for that explicit local demo profile; the process IoT toggle still starts OFF after every application launch and must be enabled separately in the UI. Release-check scripts reject active demo mode. Do not enable it on an internet-facing or production deployment. This experimental demo does not change the production-readiness gates.
 
 ## Confidence policy
 

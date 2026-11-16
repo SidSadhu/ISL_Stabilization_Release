@@ -1,0 +1,387 @@
+/*
+ * ISL INCLUDE-50 -> ESP8266 NodeMCU V3 hardware demo
+ *
+ * Commands:
+ *   hello -> green LED + OLED "HELLO!" + short active-LOW buzzer beep
+ *   time  -> yellow LED + live IST clock for 10 seconds
+ *
+ * MQTT contract: schema 1.0
+ *   Subscribe: isl/command/v1
+ *   Publish:   isl/ack/v1
+ *
+ * Install with Arduino IDE:
+ *   - ESP8266 board package (tested target: NodeMCU 1.0 / ESP-12E)
+ *   - PubSubClient by Nick O'Leary
+ *   - ArduinoJson 6.x (6.21.x recommended)
+ *   - Adafruit GFX Library
+ *   - Adafruit SSD1306
+ *
+ * Keep this broker local to your laptop/hotspot. Port 1883 is not TLS-encrypted.
+ */
+
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <time.h>
+
+// ---------- EDIT THESE FOUR SETTINGS ----------
+const char* WIFI_SSID = "YOUR_PHONE_HOTSPOT_SSID";
+const char* WIFI_PASSWORD = "YOUR_PHONE_HOTSPOT_PASSWORD";
+
+// Your laptop Wi-Fi IPv4 was previously 10.140.96.1.
+// Check it again after reconnecting the hotspot.
+IPAddress MQTT_BROKER(10, 140, 96, 1);
+const uint16_t MQTT_PORT = 1883;
+const char* MQTT_USERNAME = "YOUR_MQTT_USERNAME";
+const char* MQTT_PASSWORD = "YOUR_MQTT_PASSWORD";
+// ---------------------------------------------
+
+const char* COMMAND_TOPIC = "isl/command/v1";
+const char* ACK_TOPIC = "isl/ack/v1";
+const char* MQTT_CLIENT_ID = "isl-esp8266-node-01";
+
+constexpr uint8_t OLED_SDA_PIN = D2;       // GPIO4
+constexpr uint8_t OLED_SCL_PIN = D1;       // GPIO5
+constexpr uint8_t GREEN_LED_PIN = D5;      // GPIO14
+constexpr uint8_t YELLOW_LED_PIN = D6;     // GPIO12
+constexpr uint8_t BUZZER_PIN = D7;         // GPIO13, active LOW
+constexpr uint8_t OLED_ADDRESS = 0x3C;
+constexpr uint32_t HELLO_ACTION_MS = 2200;
+constexpr uint32_t HELLO_BEEP_MS = 140;
+constexpr uint32_t TIME_ACTION_MS = 10000;
+constexpr float MIN_IOT_CONFIDENCE = 0.70f;
+constexpr uint32_t MAX_COMMAND_TTL_SECONDS = 30;
+constexpr size_t MQTT_BUFFER_SIZE = 768;
+constexpr size_t RECENT_ID_COUNT = 24;
+
+WiFiClient wifiClient;
+PubSubClient mqtt(wifiClient);
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+
+enum ActiveAction : uint8_t { ACTION_NONE, ACTION_HELLO, ACTION_TIME };
+ActiveAction activeAction = ACTION_NONE;
+uint32_t actionStartedAt = 0;
+uint32_t actionEndsAt = 0;
+uint32_t buzzerEndsAt = 0;
+uint32_t lastClockRefreshAt = 0;
+
+String recentCommandIds[RECENT_ID_COUNT];
+String recentCaptureIds[RECENT_ID_COUNT];
+size_t recentWriteIndex = 0;
+
+bool oledReady = false;
+bool displayReadyMessageShown = false;
+
+bool timeIsSynchronized() {
+  return time(nullptr) > 1700000000;
+}
+
+void showLines(const String& line1, const String& line2 = "",
+               const String& line3 = "") {
+  if (!oledReady) return;
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("ISL IoT / ESP8266");
+  display.drawFastHLine(0, 12, 128, SSD1306_WHITE);
+  display.setTextSize(2);
+  display.setCursor(0, 22);
+  display.println(line1);
+  display.setTextSize(1);
+  display.setCursor(0, 49);
+  if (line2.length()) display.println(line2);
+  if (line3.length()) display.println(line3);
+  display.display();
+}
+
+void safeOutputs() {
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(YELLOW_LED_PIN, LOW);
+  digitalWrite(BUZZER_PIN, HIGH);  // active-LOW buzzer: HIGH = OFF
+  activeAction = ACTION_NONE;
+  buzzerEndsAt = 0;
+}
+
+void showReady() {
+  safeOutputs();
+  showLines("READY", "Waiting for ISL command");
+  displayReadyMessageShown = true;
+}
+
+void publishAck(const String& commandId, const char* status,
+                const char* detail) {
+  StaticJsonDocument<320> ack;
+  ack["schema_version"] = "1.0";
+  ack["command_id"] = commandId;
+  ack["status"] = status;
+  ack["detail"] = detail;
+
+  char timestamp[25] = "time-not-synced";
+  if (timeIsSynchronized()) {
+    time_t nowUtc = time(nullptr);
+    struct tm utcParts;
+    gmtime_r(&nowUtc, &utcParts);
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", &utcParts);
+  }
+  ack["timestamp_utc"] = timestamp;
+
+  char output[320];
+  const size_t written = serializeJson(ack, output, sizeof(output));
+  if (written > 0 && mqtt.connected()) {
+    mqtt.publish(ACK_TOPIC, output, false);  // never retain acknowledgements
+  }
+}
+
+bool isUuid(const String& value) {
+  if (value.length() != 36) return false;
+  for (size_t i = 0; i < value.length(); ++i) {
+    const char ch = value[i];
+    if (i == 8 || i == 13 || i == 18 || i == 23) {
+      if (ch != '-') return false;
+    } else if (!isxdigit(static_cast<unsigned char>(ch))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool alreadySeen(const String& commandId, const String& captureId) {
+  for (size_t i = 0; i < RECENT_ID_COUNT; ++i) {
+    if (recentCommandIds[i] == commandId || recentCaptureIds[i] == captureId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void rememberIds(const String& commandId, const String& captureId) {
+  recentCommandIds[recentWriteIndex] = commandId;
+  recentCaptureIds[recentWriteIndex] = captureId;
+  recentWriteIndex = (recentWriteIndex + 1) % RECENT_ID_COUNT;
+}
+
+void startHelloAction() {
+  safeOutputs();
+  activeAction = ACTION_HELLO;
+  actionStartedAt = millis();
+  actionEndsAt = actionStartedAt + HELLO_ACTION_MS;
+  buzzerEndsAt = actionStartedAt + HELLO_BEEP_MS;
+  digitalWrite(GREEN_LED_PIN, HIGH);
+  digitalWrite(YELLOW_LED_PIN, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
+  showLines("HELLO!", "Green LED + beep");
+}
+
+void refreshClockDisplay() {
+  if (!timeIsSynchronized()) {
+    showLines("TIME", "Waiting for NTP sync");
+    return;
+  }
+  time_t nowUtc = time(nullptr);
+  struct tm localParts;
+  localtime_r(&nowUtc, &localParts);
+  char clockText[16];
+  strftime(clockText, sizeof(clockText), "%H:%M:%S", &localParts);
+  showLines("TIME", String(clockText), "Asia/Kolkata");
+}
+
+void startTimeAction() {
+  safeOutputs();
+  activeAction = ACTION_TIME;
+  actionStartedAt = millis();
+  actionEndsAt = actionStartedAt + TIME_ACTION_MS;
+  lastClockRefreshAt = 0;
+  digitalWrite(YELLOW_LED_PIN, HIGH);
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(BUZZER_PIN, HIGH);
+  refreshClockDisplay();
+}
+
+void reject(const String& commandId, const char* reason) {
+  publishAck(commandId, "rejected", reason);
+}
+
+void handleCommand(const byte* payload, unsigned int length) {
+  if (length == 0 || length > MQTT_BUFFER_SIZE) {
+    reject("", "invalid_payload_size");
+    return;
+  }
+
+  StaticJsonDocument<MQTT_BUFFER_SIZE> doc;
+  DeserializationError parseError = deserializeJson(doc, payload, length);
+  if (parseError) {
+    reject("", "invalid_json");
+    return;
+  }
+
+  const String commandId = doc["command_id"] | "";
+  const String command = doc["command"] | "";
+  const String sourceLabel = doc["source_label"] | "";
+  const String captureId = doc["capture_id"] | "";
+
+  if (doc["schema_version"] != "1.0") {
+    reject(commandId, "unsupported_schema_version");
+    return;
+  }
+  if (!isUuid(commandId)) {
+    reject(commandId, "invalid_command_id");
+    return;
+  }
+  if (!isUuid(captureId)) {
+    reject(commandId, "invalid_capture_id");
+    return;
+  }
+  if (!doc["confidence"].is<float>() &&
+      !doc["confidence"].is<double>() &&
+      !doc["confidence"].is<int>()) {
+    reject(commandId, "invalid_confidence");
+    return;
+  }
+  const double confidence = doc["confidence"].as<double>();
+  if (!isfinite(confidence) || confidence < MIN_IOT_CONFIDENCE || confidence > 1.0) {
+    reject(commandId, "confidence_out_of_range");
+    return;
+  }
+  if (!doc["issued_at"].is<double>() && !doc["issued_at"].is<long>() &&
+      !doc["issued_at"].is<unsigned long>()) {
+    reject(commandId, "invalid_issued_at");
+    return;
+  }
+  if (!doc["expires_at"].is<double>() && !doc["expires_at"].is<long>() &&
+      !doc["expires_at"].is<unsigned long>()) {
+    reject(commandId, "invalid_expires_at");
+    return;
+  }
+  if (!timeIsSynchronized()) {
+    reject(commandId, "device_clock_not_synchronized");
+    return;
+  }
+
+  const double issuedAt = doc["issued_at"].as<double>();
+  const double expiresAt = doc["expires_at"].as<double>();
+  const double now = static_cast<double>(time(nullptr));
+  if (!isfinite(issuedAt) || !isfinite(expiresAt) ||
+      issuedAt > now + 5.0 || expiresAt <= now ||
+      expiresAt <= issuedAt ||
+      expiresAt - issuedAt > MAX_COMMAND_TTL_SECONDS) {
+    reject(commandId, "invalid_or_expired_time_window");
+    return;
+  }
+
+  const bool isHello = sourceLabel == "hello" && command == "HELLO_ACTION";
+  const bool isTime = sourceLabel == "time" && command == "TIME_ACTION";
+  if (!isHello && !isTime) {
+    reject(commandId, "command_not_allowlisted");
+    return;
+  }
+  if (alreadySeen(commandId, captureId)) {
+    publishAck(commandId, "duplicate", "command_or_capture_already_processed");
+    return;
+  }
+  if (activeAction != ACTION_NONE) {
+    reject(commandId, "device_action_busy");
+    return;
+  }
+
+  rememberIds(commandId, captureId);
+  if (isHello) {
+    startHelloAction();
+    publishAck(commandId, "acknowledged", "hello_outputs_activated");
+  } else {
+    startTimeAction();
+    publishAck(commandId, "acknowledged", "time_display_activated");
+  }
+}
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  if (String(topic) != COMMAND_TOPIC) return;
+  handleCommand(payload, length);
+}
+
+void connectWiFi() {
+  if (WiFi.status() == WL_CONNECTED) return;
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  const uint32_t started = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - started < 15000) {
+    delay(250);
+  }
+}
+
+void connectMQTT() {
+  if (mqtt.connected() || WiFi.status() != WL_CONNECTED || !timeIsSynchronized()) return;
+  static uint32_t lastAttemptAt = 0;
+  if (millis() - lastAttemptAt < 3000) return;
+  lastAttemptAt = millis();
+
+  bool connected = false;
+  if (strlen(MQTT_USERNAME) > 0 &&
+      String(MQTT_USERNAME) != "YOUR_MQTT_USERNAME") {
+    connected = mqtt.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
+  } else {
+    connected = mqtt.connect(MQTT_CLIENT_ID);
+  }
+  if (connected) {
+    mqtt.subscribe(COMMAND_TOPIC, 1);
+    showLines("MQTT READY", WiFi.localIP().toString());
+  }
+}
+
+void updateActions() {
+  const uint32_t now = millis();
+  if (buzzerEndsAt && static_cast<int32_t>(now - buzzerEndsAt) >= 0) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    buzzerEndsAt = 0;
+  }
+  if (activeAction == ACTION_TIME && now - lastClockRefreshAt >= 250) {
+    lastClockRefreshAt = now;
+    refreshClockDisplay();
+  }
+  if (activeAction != ACTION_NONE &&
+      static_cast<int32_t>(now - actionEndsAt) >= 0) {
+    showReady();
+  }
+}
+
+void setup() {
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(YELLOW_LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  safeOutputs();
+
+  Serial.begin(115200);
+  Wire.begin(OLED_SDA_PIN, OLED_SCL_PIN);
+  oledReady = display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS);
+  showLines("BOOTING", "Connecting Wi-Fi");
+
+  WiFi.persistent(false);
+  WiFi.setAutoReconnect(true);
+  connectWiFi();
+
+  // Unix epoch time stays UTC for protocol validation; localtime() uses IST.
+  configTime(19800, 0, "pool.ntp.org", "time.google.com", "time.nist.gov");
+  mqtt.setServer(MQTT_BROKER, MQTT_PORT);
+  mqtt.setCallback(mqttCallback);
+  mqtt.setBufferSize(MQTT_BUFFER_SIZE);
+  mqtt.setKeepAlive(30);
+  showLines("SYNCING", "Waiting for NTP");
+}
+
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    safeOutputs();
+    connectWiFi();
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    connectMQTT();
+    if (mqtt.connected()) mqtt.loop();
+  }
+
+  updateActions();
+  delay(5);
+}

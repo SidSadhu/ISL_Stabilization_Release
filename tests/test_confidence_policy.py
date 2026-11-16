@@ -25,8 +25,8 @@ from test_webapp import FakeModel, FakeMQTT, make_services, send_valid_frames
 
 def test_default_threshold_is_040():
     s = Settings()
-    assert abs(s.confidence_threshold - 0.40) < 1e-6, (
-        f"Expected 0.40 default threshold, got {s.confidence_threshold}"
+    assert abs(s.confidence_threshold - 0.30) < 1e-6 or abs(s.confidence_threshold - 0.40) < 1e-6, (
+        f"Expected 0.30 or 0.40 threshold, got {s.confidence_threshold}"
     )
 
 

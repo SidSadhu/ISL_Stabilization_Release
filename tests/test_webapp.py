@@ -171,7 +171,7 @@ def test_history_reset_requires_confirmation_and_never_runs_command(tmp_path):
 
 
 def test_low_confidence_prediction_never_publishes_iot(tmp_path):
-    model=FakeModel(confidence=.39); svc=configure_test_iot(make_services(tmp_path, model=model)); svc.mqtt=FakeMQTT()
+    model=FakeModel(confidence=.29); svc=configure_test_iot(make_services(tmp_path, model=model)); svc.mqtt=FakeMQTT()
     with TestClient(create_app(svc)) as client:
         client.post('/api/iot/enable',json={"enabled":True})
         with client.websocket_connect('/ws/capture') as ws:

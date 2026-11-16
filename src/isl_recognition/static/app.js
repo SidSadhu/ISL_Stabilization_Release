@@ -31,7 +31,7 @@
   let selectedReference = null;
   let expectedLabel = null;
   let capturing = false, submitting = false, captureStartedAt = null, captureMaxSeconds = 6.0, captureTargetSeconds = null, lastVideoTime = -1, lastFrameCount = 0, clientDropped = 0, serverDropped = 0;
-  const guidedCaptureSeconds = 2.6;
+  const guidedCaptureSeconds = 2.7;
   const readinessSetupGraceMs = 6000; // time to step away from the laptop after arming
   let captureCountdownToken = 0;
   let cancelReadinessWait = null;
@@ -380,7 +380,7 @@
   function renderResult(r) {
     const label = r.predicted_label || '—';
     $('predictionWord').textContent = label;
-    const thresh = (typeof window._confidenceThreshold === 'number') ? window._confidenceThreshold : 0.40;
+    const thresh = (typeof window._confidenceThreshold === 'number') ? window._confidenceThreshold : 0.30;
     let predLabel;
     if (r.outcome === 'accepted') {
       predLabel = `Accepted ≥ ${(thresh*100).toFixed(0)}% (provisional threshold — not independently calibrated)`;

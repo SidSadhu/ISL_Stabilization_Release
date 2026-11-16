@@ -30,7 +30,9 @@ def main() -> int:
     print(f"ISL_CHECKPOINT configured: {bool(settings.checkpoint)}; exists: {bool(settings.checkpoint and settings.checkpoint.is_file())}")
     label = resolve_label_map(settings)
     print(f"Label map: {label if label and label.is_file() else 'MISSING'}")
-    print(f"Pre-IoT lockdown: {settings.pre_iot_lockdown} (should be True for this release)")
+    print(f"Base pre-IoT lockdown policy: {settings.pre_iot_lockdown} (must remain True)")
+    print(f"Local hardware demo override: {settings.iot_hardware_demo_enabled}")
+    print(f"Effective IoT lock active: {settings.iot_lock_active}")
     print(f"Recognition threshold: {settings.confidence_threshold:.2f} (uncalibrated until complete validation)")
     print(f"IoT minimum confidence: {settings.iot_min_confidence:.2f} (separate, provisional actuator gate)")
     try:
@@ -39,7 +41,7 @@ def main() -> int:
         print(f"IoT mapping: {len(mappings)} configured label(s); exactly two are required before any future IoT release")
     except Exception as exc:
         print(f"IoT mapping: INVALID/FAIL-CLOSED ({type(exc).__name__}: {exc})")
-    print("Pre-IoT application lockdown: ON; preflight does not load model weights, access the webcam, or test a live MQTT broker.")
+    print(f"Effective IoT lock: {'ON' if settings.iot_lock_active else 'OFF'}; preflight does not load model weights, access the webcam, or test a live MQTT broker.")
     return 0
 
 if __name__ == "__main__":

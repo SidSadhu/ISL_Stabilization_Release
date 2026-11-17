@@ -76,6 +76,7 @@ def test_iot_backend_requires_expected_sign_before_actuation():
     assert response["status"] == "expected_sign_required"
     assert services.mqtt is None
 
+
 def test_i_label_publishes_welcome_action_when_expected_sign_matches():
     class Store:
         def __init__(self):
@@ -118,7 +119,6 @@ def test_i_label_publishes_welcome_action_when_expected_sign_matches():
     assert len(mqtt.commands) == 1
     assert mqtt.commands[0]["source_label"] == "i"
     assert store.events[0]["mapped_command"] == "WELCOME_ACTION"
-
 
 
 def test_iot_default_threshold_is_thirty_percent():

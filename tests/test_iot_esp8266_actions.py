@@ -149,7 +149,7 @@ def test_low_confidence_command_cannot_be_built():
         make_command(label="quiet", confidence=0.29)
 
 
-def test_simulator_acknowledges_quiet_and_time_once():
+def test_simulator_acknowledges_each_esp8266_action_once():
     for label, command_name in (
         ("quiet", "QUIET_ACTION"),
         ("time", "TIME_ACTION"),

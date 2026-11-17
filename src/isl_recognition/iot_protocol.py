@@ -18,15 +18,17 @@ SUPPORTED_COMMANDS = {
     # Physical ESP8266 demo actions.
     "QUIET_ACTION": 0,
     "TIME_ACTION": 0,
+    "WELCOME_ACTION": 0,
 }
 ACK_STATUSES = {"acknowledged", "rejected", "duplicate"}
 
 
 def load_label_commands(path: Path, valid_labels: Mapping[str, int] | set[str]) -> dict[str, str]:
-    """Load the user-selected two-label IoT allowlist.
+    """Load the user-selected ESP8266 IoT allowlist.
 
-    The shipped configuration is intentionally empty. Once the two demo signs are
-    selected, the file must contain exactly two official INCLUDE-50 labels. It is
+    The shipped configuration is intentionally empty. The local ESP8266 profile
+    supports the existing two-sign configuration and an optional third welcome sign.
+    Every configured label must be an official INCLUDE-50 label. It is
     never used to alter the classifier vocabulary or class-index ordering.
     """
     if not path.is_file():
@@ -37,8 +39,8 @@ def load_label_commands(path: Path, valid_labels: Mapping[str, int] | set[str]) 
     mappings = payload.get("mappings")
     if not isinstance(mappings, dict):
         raise ValueError("IoT mapping 'mappings' must be a JSON object.")
-    if len(mappings) not in {0, 2}:
-        raise ValueError("Configure either zero mappings (disabled) or exactly two IoT sign mappings.")
+    if len(mappings) not in {0, 2, 3}:
+        raise ValueError("Configure zero mappings (disabled), or exactly two or three IoT sign mappings.")
 
     known_labels = set(valid_labels.keys()) if isinstance(valid_labels, Mapping) else set(valid_labels)
     cleaned: dict[str, str] = {}
@@ -212,6 +214,9 @@ class SimulatedESP32:
                 elif command_name == "TIME_ACTION":
                     self.actions.append(command_name)
                     detail = "simulated_time_action_processed"
+                elif command_name == "WELCOME_ACTION":
+                    self.actions.append(command_name)
+                    detail = "simulated_welcome_action_processed"
                 else:  # Defensive: validate_command should already reject this.
                     status, detail = "rejected", "unsupported_command"
                     return {

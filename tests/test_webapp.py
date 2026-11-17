@@ -494,7 +494,8 @@ def test_iot_cannot_be_enabled_without_supported_mappings(tmp_path):
         assert health['iot_mapping_count'] == 0
         response = client.post('/api/iot/enable', json={'enabled': True}).json()
         assert response['iot_enabled'] is False
-        assert 'exactly two' in response['message']
+        assert "exactly two" in response["message"]
+
 
 def test_three_sign_esp8266_mapping_is_reported_and_can_be_enabled(tmp_path):
     svc = make_services(tmp_path, model=FakeModel())

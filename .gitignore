@@ -25,6 +25,8 @@ outputs/
 var/
 *.sqlite3
 *.db
+# Local ESP8266 Wi-Fi/MQTT credentials
+firmware/esp8266/secrets.h
 # IDE and OS files
 .idea/
 .vscode/

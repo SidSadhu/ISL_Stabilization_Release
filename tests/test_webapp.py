@@ -53,7 +53,7 @@ class FakeMQTT:
 
 
 def make_services(tmp_path, model=None, extractor=None, labels=None):
-    settings = replace(Settings(), database_path=tmp_path / "events.sqlite3", min_capture_frames=12, queue_size=4, iot_cooldown_seconds=0, pre_iot_lockdown=False)
+    settings = replace(Settings(), database_path=tmp_path / "events.sqlite3", min_capture_frames=12, queue_size=4, iot_cooldown_seconds=0, pre_iot_lockdown=False, confidence_threshold=0.30, iot_min_confidence=0.30)
     settings.validate()
     labels = labels or load_label_map(ROOT / "config" / "label_map_include50.json")
     return RuntimeServices(settings=settings, store=EventStore(settings.database_path), model=model,
@@ -128,7 +128,7 @@ def test_iot_enable_is_explicit_and_mapped_hello_creates_command(tmp_path):
         assert client.get('/api/health').json()["iot_enabled"] is False
         assert client.post('/api/iot/enable',json={"enabled":True}).json()["iot_enabled"] is True
         with client.websocket_connect('/ws/capture') as ws:
-            ws.receive_json(); ws.send_json({"type":"start"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
+            ws.receive_json(); ws.send_json({"type":"start", "expected_label":"hello"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
             while True:
                 msg=ws.receive_json()
                 if msg["type"]=="result": break
@@ -142,7 +142,7 @@ def test_mapped_thankyou_prediction_generates_triple_blink_command(tmp_path):
     with TestClient(create_app(svc)) as client:
         client.post('/api/iot/enable',json={"enabled":True})
         with client.websocket_connect('/ws/capture') as ws:
-            ws.receive_json(); ws.send_json({"type":"start"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
+            ws.receive_json(); ws.send_json({"type":"start", "expected_label":"thankyou"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
             while True:
                 msg=ws.receive_json()
                 if msg["type"] == "result": break
@@ -190,7 +190,7 @@ def test_unmapped_accepted_label_never_publishes_iot(tmp_path):
     with TestClient(create_app(svc)) as client:
         client.post('/api/iot/enable',json={"enabled":True})
         with client.websocket_connect('/ws/capture') as ws:
-            ws.receive_json(); ws.send_json({"type":"start"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
+            ws.receive_json(); ws.send_json({"type":"start", "expected_label":"court"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
             while True:
                 msg=ws.receive_json()
                 if msg["type"]=="result": break
@@ -308,7 +308,7 @@ def test_mqtt_publish_failure_is_recorded_but_recognition_survives(tmp_path):
     with TestClient(create_app(svc)) as client:
         client.post('/api/iot/enable',json={"enabled":True})
         with client.websocket_connect('/ws/capture') as ws:
-            ws.receive_json(); ws.send_json({"type":"start"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
+            ws.receive_json(); ws.send_json({"type":"start", "expected_label":"hello"}); ws.receive_json(); send_valid_frames(ws,14); ws.send_json({"type":"stop"})
             while True:
                 msg=ws.receive_json()
                 if msg["type"]=="result": break
@@ -497,23 +497,78 @@ def test_iot_cannot_be_enabled_without_exactly_two_mappings(tmp_path):
         assert 'exactly two' in response['message']
 
 
-def test_recognised_text_can_be_accepted_but_iot_has_separate_070_gate(tmp_path):
-    model = FakeModel(index=22, confidence=.60)
+def test_shared_030_threshold_allows_iot_when_expected_sign_matches(tmp_path):
+    model = FakeModel(index=22, confidence=.30)
     svc = configure_test_iot(make_services(tmp_path, model=model))
     svc.mqtt = FakeMQTT()
     with TestClient(create_app(svc)) as client:
         enabled = client.post('/api/iot/enable', json={'enabled': True}).json()
         assert enabled['iot_enabled'] is True
         with client.websocket_connect('/ws/capture') as ws:
-            ws.receive_json(); ws.send_json({'type':'start'}); ws.receive_json()
+            ws.receive_json(); ws.send_json({'type':'start', 'expected_label':'hello'}); ws.receive_json()
             send_valid_frames(ws, 14); ws.send_json({'type':'stop'})
             while True:
                 msg = ws.receive_json()
                 if msg['type'] == 'result': break
     assert msg['result']['outcome'] == 'accepted'
-    assert msg['iot']['status'] == 'rejected'
-    assert '0.70' in msg['iot']['message']
+    assert msg['iot']['status'] == 'pending'
+    assert msg['result']['expected_label'] == 'hello'
+    assert svc.mqtt.commands[0]['confidence'] == .30
+    assert len(svc.mqtt.commands) == 1
+
+
+
+def test_expected_sign_mismatch_suppresses_mapped_iot_command(tmp_path):
+    model = FakeModel(index=22, confidence=.99)
+    svc = configure_test_iot(make_services(tmp_path, model=model))
+    svc.mqtt = FakeMQTT()
+    with TestClient(create_app(svc)) as client:
+        client.post('/api/iot/enable', json={'enabled': True})
+        with client.websocket_connect('/ws/capture') as ws:
+            ws.receive_json()
+            ws.send_json({'type':'start', 'expected_label':'court'})
+            ws.receive_json()
+            send_valid_frames(ws, 14)
+            ws.send_json({'type':'stop'})
+            while True:
+                msg = ws.receive_json()
+                if msg['type'] == 'result': break
+    assert msg['result']['outcome'] == 'accepted'
+    assert msg['result']['predicted_label'] == 'hello'
+    assert msg['result']['expected_label'] == 'court'
+    assert msg['iot']['status'] == 'expected_sign_mismatch'
     assert svc.mqtt.commands == []
+
+
+def test_missing_expected_sign_suppresses_iot_command(tmp_path):
+    model = FakeModel(index=22, confidence=.99)
+    svc = configure_test_iot(make_services(tmp_path, model=model))
+    svc.mqtt = FakeMQTT()
+    with TestClient(create_app(svc)) as client:
+        client.post('/api/iot/enable', json={'enabled': True})
+        with client.websocket_connect('/ws/capture') as ws:
+            ws.receive_json()
+            ws.send_json({'type':'start'})
+            ws.receive_json()
+            send_valid_frames(ws, 14)
+            ws.send_json({'type':'stop'})
+            while True:
+                msg = ws.receive_json()
+                if msg['type'] == 'result': break
+    assert msg['result']['outcome'] == 'accepted'
+    assert msg['iot']['status'] == 'expected_sign_required'
+    assert svc.mqtt.commands == []
+
+
+def test_unknown_expected_sign_is_rejected_at_capture_start(tmp_path):
+    svc = make_services(tmp_path, model=FakeModel())
+    with TestClient(create_app(svc)) as client:
+        with client.websocket_connect('/ws/capture') as ws:
+            ws.receive_json()
+            ws.send_json({'type':'start', 'expected_label':'not-an-include-label'})
+            response = ws.receive_json()
+    assert response['type'] == 'error'
+    assert response['code'] == 'invalid_expected_label'
 
 
 def test_build_services_loads_two_iot_labels_from_external_config(tmp_path):
@@ -549,6 +604,7 @@ def test_iot_capture_cannot_be_reissued_after_history_reset(tmp_path):
     capture_id = "capture-replay-integration"
     recognition = {
         "capture_id": capture_id, "outcome": "accepted", "predicted_label": "hello",
+        "expected_label": "hello",
         "confidence": .95, "frame_count": 20,
     }
     svc.store.add_recognition(recognition)

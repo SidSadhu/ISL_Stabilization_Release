@@ -191,16 +191,13 @@
         <div class="iot-card">
           <div class="iot-head">
             <div>
-              <p class="eyebrow">03 / FUTURE WORK</p>
+              <p class="eyebrow">03 / LOCAL HARDWARE DEMO</p>
               <h3>IoT command gate</h3>
             </div><label class="switch"><input id="iotToggle" type="checkbox" aria-label="Enable IoT commands"
                 disabled><span class="slider"></span></label>
           </div>
-          <p class="hint">This pre-IoT release is intentionally locked: no prediction can publish a device command. The
-            future hardware phase requires a separately reviewed release after recognition and confidence-policy
-            validation.</p>
-          <div id="iotMessage" class="iot-status" role="status" aria-live="polite">IoT is locked for pre-IoT validation.
-          </div>
+          <p id="iotPolicyHint" class="hint">Checking the local hardware-demo policy…</p>
+          <div id="iotMessage" class="iot-status" role="status" aria-live="polite">Waiting for the next capture.</div>
         </div>
       </section>
     </div>
@@ -268,7 +265,7 @@
         · pre-IoT release</span></footer>
   </main>
   <script src="/static/landmark_diagnostics.js?v=20261108-pose-readiness-v2" defer></script>
-  <script src="/static/app.js?v=20261108-pose-readiness-v2" defer></script>
+  <script src="/static/app.js?v=20261117-local-iot-retry-state-v2" defer></script>
 </body>
 
 </html>

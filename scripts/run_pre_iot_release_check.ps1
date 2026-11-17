@@ -25,6 +25,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Preflight failed.' }
 Write-Host '5/5 - Pre-IoT policy check' -ForegroundColor Cyan
 $source = Get-Content .\src\isl_recognition\app_config.py -Raw
 if ($source -notmatch 'pre_iot_lockdown: bool = True') { throw 'Pre-IoT code-level lockdown is not true.' }
+if ($env:ISL_IOT_HARDWARE_DEMO -eq 'true') { throw 'Disable ISL_IOT_HARDWARE_DEMO before running pre-IoT release checks.' }
+if ((Test-Path '.\.env') -and (Select-String -Path '.\.env' -SimpleMatch 'ISL_IOT_HARDWARE_DEMO=true' -Quiet)) { throw 'Disable ISL_IOT_HARDWARE_DEMO in .env before running pre-IoT release checks.' }
 if (Test-Path '.\.env') {
   $iotEnabled = Select-String -Path '.\.env' -Pattern '^\s*ISL_IOT_ENABLED\s*=\s*true\s*$' -Quiet
   if ($iotEnabled) { throw '.env must set ISL_IOT_ENABLED=false for the pre-IoT release.' }

@@ -35,7 +35,7 @@ class Settings:
     # 14/14 accepted clips correct (100% selective accuracy). This DOES NOT imply 100%
     # real-world accuracy. Tune on a proper validation set before any production use.
     # The UI always shows the raw score and an UNCALIBRATED warning.
-    confidence_threshold: float = float(os.getenv("ISL_CONFIDENCE_THRESHOLD", "0.30"))  # Default was "0.40"
+    confidence_threshold: float = float(os.getenv("ISL_CONFIDENCE_THRESHOLD", "0.30"))  # Shared local-demo recognition default is 0.30
 
     min_capture_frames: int = int(os.getenv("ISL_MIN_CAPTURE_FRAMES", "12"))
     max_capture_seconds: float = float(os.getenv("ISL_MAX_CAPTURE_SECONDS", "6.0"))
@@ -52,19 +52,26 @@ class Settings:
     # is not established because the upstream upper_body_only model was removed.
     pose_compat_mode: str = "modern_full_pose_first25_index_compatible_not_exact_legacy"
 
-    # A pre-IoT release must not be able to actuate devices.
+    # Keep the release lock literal and ON. A separate, explicit local-only
+    # hardware-demo profile may temporarily bypass the effective lock.
     pre_iot_lockdown: bool = True
+    iot_hardware_demo_enabled: bool = os.getenv("ISL_IOT_HARDWARE_DEMO", "false").strip().lower() in {"true", "1", "yes"}
     iot_default_enabled: bool = os.getenv("ISL_IOT_ENABLED", "false").lower() in {"true", "1", "yes"}
     iot_cooldown_seconds: float = float(os.getenv("ISL_IOT_COOLDOWN_SECONDS", "5"))
     mqtt_host: str = os.getenv("MQTT_HOST", "127.0.0.1")
     mqtt_port: int = int(os.getenv("MQTT_PORT", "1883"))
     iot_label_map_path: Path = _path_env("ISL_IOT_LABEL_MAP", PROJECT_ROOT / "config" / "iot_label_map.json")  # type: ignore[assignment]
-    iot_min_confidence: float = float(os.getenv("ISL_IOT_MIN_CONFIDENCE", "0.70"))
+    iot_min_confidence: float = float(os.getenv("ISL_IOT_MIN_CONFIDENCE", "0.30"))
     mqtt_username: str | None = os.getenv("MQTT_USERNAME") or None
     mqtt_password: str | None = os.getenv("MQTT_PASSWORD") or None
     mqtt_command_topic: str = os.getenv("MQTT_COMMAND_TOPIC", "isl/command/v1")
     mqtt_ack_topic: str = os.getenv("MQTT_ACK_TOPIC", "isl/ack/v1")
     mqtt_ack_timeout_seconds: float = float(os.getenv("MQTT_ACK_TIMEOUT_SECONDS", "5"))
+
+    @property
+    def iot_lock_active(self) -> bool:
+        """Effective IoT safety lock; base release policy remains hard-coded ON."""
+        return self.pre_iot_lockdown and not self.iot_hardware_demo_enabled
 
     def validate(self) -> None:
         if not math.isfinite(self.confidence_threshold) or not 0.0 <= self.confidence_threshold <= 1.0:

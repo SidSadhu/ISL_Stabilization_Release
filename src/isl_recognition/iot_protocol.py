@@ -11,18 +11,24 @@ from typing import Any
 
 SCHEMA_VERSION = "1.0"
 SUPPORTED_COMMANDS = {
+    # Legacy simulator commands remain supported for backwards compatibility.
     "LED_BLINK": 1,
     "LED_BLINK_TWICE": 2,
     "LED_BLINK_THREE": 3,
+    # Physical ESP8266 demo actions.
+    "QUIET_ACTION": 0,
+    "TIME_ACTION": 0,
+    "WELCOME_ACTION": 0,
 }
 ACK_STATUSES = {"acknowledged", "rejected", "duplicate"}
 
 
 def load_label_commands(path: Path, valid_labels: Mapping[str, int] | set[str]) -> dict[str, str]:
-    """Load the user-selected two-label IoT allowlist.
+    """Load the user-selected ESP8266 IoT allowlist.
 
-    The shipped configuration is intentionally empty. Once the two demo signs are
-    selected, the file must contain exactly two official INCLUDE-50 labels. It is
+    The shipped configuration is intentionally empty. The local ESP8266 profile
+    supports the existing two-sign configuration and an optional third welcome sign.
+    Every configured label must be an official INCLUDE-50 label. It is
     never used to alter the classifier vocabulary or class-index ordering.
     """
     if not path.is_file():
@@ -33,8 +39,8 @@ def load_label_commands(path: Path, valid_labels: Mapping[str, int] | set[str]) 
     mappings = payload.get("mappings")
     if not isinstance(mappings, dict):
         raise ValueError("IoT mapping 'mappings' must be a JSON object.")
-    if len(mappings) not in {0, 2}:
-        raise ValueError("Configure either zero mappings (disabled) or exactly two IoT sign mappings.")
+    if len(mappings) not in {0, 2, 3}:
+        raise ValueError("Configure zero mappings (disabled), or exactly two or three IoT sign mappings.")
 
     known_labels = set(valid_labels.keys()) if isinstance(valid_labels, Mapping) else set(valid_labels)
     cleaned: dict[str, str] = {}
@@ -56,6 +62,16 @@ def utc_iso(epoch: float | None = None) -> str:
     ).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
+def expected_sign_matches(predicted_label: Any, expected_label: Any) -> bool:
+    """Fail closed unless the prediction exactly matches the user-selected official label."""
+    return (
+        isinstance(predicted_label, str)
+        and isinstance(expected_label, str)
+        and bool(expected_label)
+        and predicted_label == expected_label
+    )
+
+
 def build_command(
     *,
     capture_id: str,
@@ -64,7 +80,7 @@ def build_command(
     label_commands: Mapping[str, str] | None = None,
     now: float | None = None,
     ttl_seconds: float = 10.0,
-    min_confidence: float = 0.70,
+    min_confidence: float = 0.30,
 ) -> dict[str, Any]:
     mappings = dict(label_commands or {})
     command_name = mappings.get(source_label)
@@ -77,11 +93,17 @@ def build_command(
         raise ValueError("Confidence is below the IoT command threshold or invalid")
     if not math.isfinite(ttl) or not 0.0 < ttl <= 30.0:
         raise ValueError("Command TTL must be finite and within (0, 30] seconds")
+    if not ttl.is_integer():
+        raise ValueError("Command TTL must use whole seconds for ESP8266 epoch precision")
     if not isinstance(capture_id, str) or not capture_id or len(capture_id) > 128:
         raise ValueError("Capture ID must be a non-empty string of at most 128 characters")
     timestamp = time.time() if now is None else float(now)
-    if not math.isfinite(timestamp):
-        raise ValueError("Command timestamp must be finite")
+    if not math.isfinite(timestamp) or timestamp < 0 or timestamp >= 2**32:
+        raise ValueError("Command timestamp must be a finite Unix epoch within uint32 range")
+    # Use integer UTC epoch seconds on the wire. The protocol needs only
+    # second-level precision; integers keep expiry arithmetic exact and avoid
+    # floating-point representation differences across embedded JSON runtimes.
+    issued_at = int(timestamp)
     return {
         "schema_version": SCHEMA_VERSION,
         "command_id": str(uuid.uuid4()),
@@ -89,8 +111,8 @@ def build_command(
         "source_label": source_label,
         "confidence": score,
         "capture_id": capture_id,
-        "issued_at": timestamp,
-        "expires_at": timestamp + ttl,
+        "issued_at": issued_at,
+        "expires_at": issued_at + int(ttl),
     }
 
 
@@ -99,7 +121,7 @@ def validate_command(
     *,
     label_commands: Mapping[str, str] | None = None,
     now: float | None = None,
-    min_confidence: float = 0.70,
+    min_confidence: float = 0.30,
 ) -> tuple[bool, str]:
     if not isinstance(payload, dict):
         return False, "payload_not_object"
@@ -148,13 +170,14 @@ class SimulatedESP32:
     def __init__(
         self,
         label_commands: Mapping[str, str] | None = None,
-        min_confidence: float = 0.70,
+        min_confidence: float = 0.30,
     ):
         self.label_commands = dict(label_commands or {})
         self.min_confidence = float(min_confidence)
         self.seen: set[str] = set()
         self.seen_captures: set[str] = set()
         self.led_blinks = 0
+        self.actions: list[str] = []
 
     def process(self, payload: Any, *, now: float | None = None) -> dict[str, Any]:
         command_id = payload.get("command_id") if isinstance(payload, dict) else None
@@ -175,14 +198,35 @@ class SimulatedESP32:
             else:
                 self.seen.add(command_id)
                 self.seen_captures.add(str(payload["capture_id"]))
-                pulse_count = SUPPORTED_COMMANDS[str(payload["command"])]
-                self.led_blinks += pulse_count
-                details = {
-                    1: "simulated_led_blink_processed",
-                    2: "simulated_led_double_blink_processed",
-                    3: "simulated_led_triple_blink_processed",
-                }
-                status, detail = "acknowledged", details[pulse_count]
+                command_name = str(payload["command"])
+                if command_name in {"LED_BLINK", "LED_BLINK_TWICE", "LED_BLINK_THREE"}:
+                    pulse_count = SUPPORTED_COMMANDS[command_name]
+                    self.led_blinks += pulse_count
+                    details = {
+                        1: "simulated_led_blink_processed",
+                        2: "simulated_led_double_blink_processed",
+                        3: "simulated_led_triple_blink_processed",
+                    }
+                    detail = details[pulse_count]
+                elif command_name == "QUIET_ACTION":
+                    self.actions.append(command_name)
+                    detail = "simulated_quiet_action_processed"
+                elif command_name == "TIME_ACTION":
+                    self.actions.append(command_name)
+                    detail = "simulated_time_action_processed"
+                elif command_name == "WELCOME_ACTION":
+                    self.actions.append(command_name)
+                    detail = "simulated_welcome_action_processed"
+                else:  # Defensive: validate_command should already reject this.
+                    status, detail = "rejected", "unsupported_command"
+                    return {
+                        "schema_version": SCHEMA_VERSION,
+                        "command_id": command_id or "",
+                        "status": status,
+                        "detail": detail,
+                        "timestamp_utc": utc_iso(now),
+                    }
+                status = "acknowledged"
         return {
             "schema_version": SCHEMA_VERSION,
             "command_id": command_id or "",

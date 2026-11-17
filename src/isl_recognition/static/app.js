@@ -63,9 +63,15 @@
       $('iotToggle').checked = Boolean(h.iot_enabled);
       $('iotToggle').disabled = Boolean(h.pre_iot_lockdown);
       $('iotToggle').title = h.pre_iot_lockdown ? 'IoT is intentionally locked in this pre-IoT release.' : 'Enable or disable IoT commands for this app session.';
-      if (h.pre_iot_lockdown) {
-        $('iotMessage').textContent = 'Pre-IoT safety lock active. No device command can be published.';
-        $('iotMessage').className = 'iot-status';
+      const policyHint = $('iotPolicyHint');
+      if (policyHint) {
+        if (h.pre_iot_lockdown) {
+          policyHint.textContent = 'Safety lock active. The backend will not publish device commands; recognition and text output remain available.';
+        } else if (h.iot_mapping_error || ![2, 3].includes(Number(h.iot_mapping_count))) {
+          policyHint.textContent = 'Local demo override is active, but the two- or three-sign hardware mapping is not valid. Device commands remain unavailable until the mapping is fixed.';
+        } else {
+          policyHint.textContent = 'Local ESP8266 demo profile is active. IoT starts OFF and must be enabled separately. Every new capture re-checks the expected sign, confidence and approved mapping.';
+        }
       }
       setDot('modelDot', h.model_ready ? 'good' : 'bad');
       setDot('visionDot', h.extractor_ready ? 'good' : 'bad');
@@ -256,7 +262,7 @@
       client_frames_dropped:clientDropped,
       diagnostic_mode:Boolean($('diagnosticOverride')?.checked),
       save_debug:Boolean($('saveDebugCapture')?.checked),
-      expected_label:expectedLabel || null,
+
       camera_settings:window._islCameraSettings || null
     }));
   }
@@ -363,7 +369,7 @@
       throw new Error('The capture connection closed during the countdown. Please retry.');
     }
     if (overlay) overlay.hidden = true;
-    ws.send(JSON.stringify({type:'start'}));
+    ws.send(JSON.stringify({type:'start', expected_label:expectedLabel || null}));
   }
   function onCaptureEnded(status) {
     cancelCaptureCountdown();
@@ -378,6 +384,14 @@
   }
 
   function renderResult(r) {
+    // Reflect the server-bound target for this capture (selection is frozen at START).
+    expectedLabel = (typeof r.expected_label === 'string' && r.expected_label) ? r.expected_label : null;
+    const expectedItem = referenceClasses.find((item) => item.label === expectedLabel);
+    $('expectedSignStatus').textContent = expectedLabel
+      ? `Expected sign: ${expectedItem?.display_name || expectedLabel}`
+      : 'No expected sign selected';
+    $('expectedSignStatus').className = expectedLabel ? 'expected-status is-set' : 'expected-status';
+    if (expectedLabel) $('referenceClass').value = expectedLabel;
     const label = r.predicted_label || '—';
     $('predictionWord').textContent = label;
     const thresh = (typeof window._confidenceThreshold === 'number') ? window._confidenceThreshold : 0.30;
@@ -447,7 +461,7 @@
     if (!r) { $('iotMessage').textContent = 'No command requested.'; $('iotMessage').className = 'iot-status'; return; }
     latestCommandId = r.command_id || null;
     $('iotMessage').textContent = `${r.status || 'unknown'} — ${r.message || ''}`;
-    $('iotMessage').className = `iot-status ${['pending','acknowledged'].includes(r.status) ? 'good' : ['publish_failed','rejected'].includes(r.status) ? 'bad' : ''}`.trim();
+    $('iotMessage').className = `iot-status ${['pending','acknowledged'].includes(r.status) ? 'good' : ['publish_failed','rejected','expected_sign_required','expected_sign_mismatch'].includes(r.status) ? 'bad' : ''}`.trim();
     loadIoTHistory(); refreshHealth();
   }
 
@@ -502,7 +516,8 @@
     if (!item) return;
     $('referenceClass').value = item.label;
     selectedReference = null;
-    $('setExpectedButton').disabled = true;
+    // Expected-sign selection does not depend on a local video being downloaded.
+    $('setExpectedButton').disabled = false;
     $('referenceVideo').pause(); $('referenceVideo').removeAttribute('src'); $('referenceVideo').load();
     $('referenceVideoPlaceholder').hidden = false;
     $('referenceVideoTitle').textContent = item.display_name;
@@ -556,6 +571,14 @@
     $('captureDuration').textContent = '0.0 s';
     $('progressBar').style.width = '0%';
     renderExpectedComparison('—');
+    latestCommandId = null;
+    const iotToggleOn = Boolean($('iotToggle').checked) && !window.islPreIoTLockdown;
+    $('iotMessage').textContent = window.islPreIoTLockdown
+      ? 'Safety lock active. No device command can be published.'
+      : (iotToggleOn
+        ? 'New attempt ready. This capture will be checked again from the beginning.'
+        : 'IoT is OFF. Recognition and text output remain available.');
+    $('iotMessage').className = 'iot-status';
   }
 
   function renderExpectedComparison(predictedLabel) {
@@ -639,7 +662,9 @@
     stopFrameSender();
     if (capturing && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({type:'cancel'}));
     if (submitting) { message('Clip processing is underway; wait for its result before retrying.', ''); return; }
-    onCaptureEnded('Ready to retry'); $('predictionWord').textContent = '—'; $('predictionLabel').textContent = 'No gesture submitted'; $('confidenceValue').textContent = '—'; $('confidenceBar').style.width='0%'; if ($('candidateSection')) $('candidateSection').hidden = true; $('outcomeValue').textContent='Waiting'; $('inferenceLatencyValue').textContent='—'; $('processingLatencyValue').textContent='—'; $('endToEndLatencyValue').textContent='—'; $('poseValue').textContent='—'; $('handValue').textContent='—'; $('progressBar').style.width='0%';
+    onCaptureEnded('Ready to retry');
+    clearPreviousResultForNewAttempt();
+    $('predictionLabel').textContent = 'No gesture submitted';
   });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) return;

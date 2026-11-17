@@ -11,7 +11,11 @@ from test_webapp import FakeModel, FakeMQTT, make_services, send_valid_frames
 
 def test_pre_iot_lockdown_is_reported_and_blocks_enable_endpoint(tmp_path):
     svc = make_services(tmp_path, model=FakeModel())
-    svc.settings = replace(svc.settings, pre_iot_lockdown=True)
+    svc.settings = replace(
+        svc.settings,
+        pre_iot_lockdown=True,
+        iot_hardware_demo_enabled=False,
+    )
     svc.mqtt = FakeMQTT()
     with TestClient(create_app(svc)) as client:
         health = client.get('/api/health').json()
@@ -26,7 +30,11 @@ def test_pre_iot_lockdown_is_reported_and_blocks_enable_endpoint(tmp_path):
 
 def test_pre_iot_lockdown_suppresses_command_even_if_runtime_flag_is_manually_set(tmp_path):
     svc = make_services(tmp_path, model=FakeModel())
-    svc.settings = replace(svc.settings, pre_iot_lockdown=True)
+    svc.settings = replace(
+        svc.settings,
+        pre_iot_lockdown=True,
+        iot_hardware_demo_enabled=False,
+    )
     svc.mqtt = FakeMQTT()
     # Simulate accidental internal state mutation; command publisher must still refuse.
     svc.iot_enabled = True

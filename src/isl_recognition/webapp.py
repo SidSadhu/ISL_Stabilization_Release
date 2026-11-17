@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .app_config import PROJECT_ROOT, Settings, resolve_label_map
 from .feature_extractor import MediaPipeFeatureExtractor
-from .iot_protocol import build_command, load_label_commands
+from .iot_protocol import build_command, expected_sign_matches, load_label_commands
 from .labels import invert_label_map, load_label_map
 from .mqtt_gateway import MQTTGateway
 from .preprocess import preprocess_feature_sequence
@@ -321,12 +321,15 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
             "max_frames": 169,
             "max_capture_seconds": svc.settings.max_capture_seconds,
             "confidence_threshold": svc.settings.confidence_threshold,
-            "iot_enabled": bool(svc.iot_enabled and not svc.settings.pre_iot_lockdown),
-            "pre_iot_lockdown": svc.settings.pre_iot_lockdown,
-            "iot_mapping_configured": len(svc.iot_label_commands) == 2,
+            "iot_enabled": bool(svc.iot_enabled and not svc.settings.iot_lock_active),
+            "pre_iot_lockdown": svc.settings.iot_lock_active,
+            "base_pre_iot_lockdown": svc.settings.pre_iot_lockdown,
+            "iot_hardware_demo_enabled": svc.settings.iot_hardware_demo_enabled,
+            "iot_mapping_configured": len(svc.iot_label_commands) in {2, 3},
             "iot_mapping_count": len(svc.iot_label_commands),
             "iot_mapping_error": svc.iot_mapping_error,
             "iot_min_confidence": svc.settings.iot_min_confidence,
+            "iot_expected_sign_match_required": True,
             "confidence_threshold_is_calibrated": False,
             "database_path": svc.settings.database_path.as_posix() if isinstance(svc.settings.database_path, Path) else svc.settings.database_path,
             "mqtt_configured": bool(svc.settings.mqtt_host and svc.settings.mqtt_port),
@@ -454,7 +457,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
         svc: RuntimeServices = app.state.services
         if not isinstance(payload.get("enabled"), bool):
             raise HTTPException(status_code=400, detail="Body must contain boolean 'enabled'.")
-        if svc.settings.pre_iot_lockdown:
+        if svc.settings.iot_lock_active:
             # Return a visible policy response; the command path also enforces the lock.
             svc.iot_enabled = False
             return {
@@ -462,12 +465,12 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                 "pre_iot_lockdown": True,
                 "message": "IoT is locked in this pre-IoT release. No device command can be published.",
             }
-        if payload["enabled"] and len(svc.iot_label_commands) != 2:
+        if payload["enabled"] and len(svc.iot_label_commands) not in {2, 3}:
             svc.iot_enabled = False
             return {
                 "iot_enabled": False,
                 "pre_iot_lockdown": False,
-                "message": "IoT cannot be enabled until exactly two valid INCLUDE-50 sign mappings are configured.",
+                "message": "IoT cannot be enabled until two or three valid INCLUDE-50 sign mappings are configured.",
                 "iot_mapping_count": len(svc.iot_label_commands),
                 "iot_mapping_error": svc.iot_mapping_error,
             }
@@ -966,6 +969,15 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                     if not svc.extractor_ready:
                         await send({"type": "error", "code": "extractor_unavailable", "message": svc.extractor_error or "MediaPipe extractor is unavailable."})
                         continue
+                    expected_label = message.get("expected_label")
+                    if expected_label is not None and (
+                        not isinstance(expected_label, str) or expected_label not in svc.labels
+                    ):
+                        await send({
+                            "type": "error", "code": "invalid_expected_label",
+                            "message": "expected_label must be null or an exact official INCLUDE-50 label.",
+                        })
+                        continue
                     if app.state.capture_lock.locked():
                         await send({"type": "error", "code": "another_capture_active", "message": "Only one capture/inference session is allowed at a time."})
                         continue
@@ -977,7 +989,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                         "extraction_failures": 0, "started_monotonic": time.monotonic(),
                         "started_epoch": time.time(), "accepting": True, "last_received_timestamp": None,
                         "frames_received": 0, "client_frames_dropped": 0,
-                        "camera_settings": camera_settings,
+                        "camera_settings": camera_settings, "expected_label": expected_label,
                     }
                     await send({
                         "type": "capture_started", "capture_id": capture["capture_id"],
@@ -1053,14 +1065,9 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                     if not isinstance(save_debug, bool):
                         await send({"type": "error", "code": "invalid_debug_save", "message": "save_debug must be a boolean."})
                         continue
-                    expected_label = message.get("expected_label")
-                    if expected_label is not None and (not isinstance(expected_label, str) or len(expected_label) > 64):
-                        await send({"type": "error", "code": "invalid_expected_label", "message": "expected_label must be a short string or null."})
-                        continue
                     if capture is not None:
                         capture["client_frames_dropped"] = client_drops
                         capture["save_debug"] = save_debug
-                        capture["expected_label"] = expected_label
                         capture["camera_settings"] = _safe_camera_settings(message.get("camera_settings")) or capture.get("camera_settings")
                         capture["stopped_monotonic"] = time.monotonic()
                     await finish_capture(diagnostic_mode=diagnostic_mode)
@@ -1124,13 +1131,24 @@ async def maybe_issue_iot_command(svc: RuntimeServices, result: dict[str, Any]) 
     capture_id = result.get("capture_id")
     # Defense in depth: pre-IoT release lockdown takes precedence over both the
     # browser control and the process-local enabled flag.
-    if svc.settings.pre_iot_lockdown:
+    if svc.settings.iot_lock_active:
         svc.iot_enabled = False
         return {"status": "suppressed", "message": "Pre-IoT lockdown is active. No device command was published."}
     if not svc.iot_enabled:
         return {"status": "disabled", "message": "IoT is OFF. No command was published."}
     if result.get("outcome") != "accepted" or result.get("status") != "accepted":
         return {"status": "rejected", "message": "Capture result was not accepted; no command was published."}
+    expected_label = result.get("expected_label")
+    if not isinstance(expected_label, str) or not expected_label:
+        return {
+            "status": "expected_sign_required",
+            "message": "Select an expected INCLUDE-50 sign before capture; no device command was published.",
+        }
+    if not expected_sign_matches(label, expected_label):
+        return {
+            "status": "expected_sign_mismatch",
+            "message": f"Predicted sign '{label}' does not match expected sign '{expected_label}'. No device command was published.",
+        }
     if label not in svc.iot_label_commands:
         return {"status": "not_mapped", "message": "This accepted label has no approved IoT mapping."}
     try:

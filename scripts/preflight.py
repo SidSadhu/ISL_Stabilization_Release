@@ -38,7 +38,7 @@ def main() -> int:
     try:
         labels = load_label_map(label) if label and label.is_file() else {}
         mappings = load_label_commands(settings.iot_label_map_path, labels) if labels else {}
-        print(f"IoT mapping: {len(mappings)} configured label(s); exactly two are required before any future IoT release")
+        print(f"IoT mapping: {len(mappings)} configured label(s); two or three are supported by the local ESP8266 demo profile")
     except Exception as exc:
         print(f"IoT mapping: INVALID/FAIL-CLOSED ({type(exc).__name__}: {exc})")
     print(f"Effective IoT lock: {'ON' if settings.iot_lock_active else 'OFF'}; preflight does not load model weights, access the webcam, or test a live MQTT broker.")

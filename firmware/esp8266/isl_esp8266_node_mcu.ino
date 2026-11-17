@@ -214,7 +214,7 @@ void startQuietAction() {
   digitalWrite(GREEN_LED_PIN, HIGH);
   digitalWrite(YELLOW_LED_PIN, LOW);
   startBuzzerBeep();
-  Serial.printf("[ACTION] QUIET started; outputs will remain active for %lu ms\\n",
+  Serial.printf("[ACTION] QUIET started; outputs will remain active for %lu ms\n",
                 static_cast<unsigned long>(QUIET_ACTION_MS));
   showLines("QUIET!", "Green LED + beep");
 }
@@ -254,7 +254,7 @@ void startTimeAction() {
   lastClockRefreshAt = 0;
   digitalWrite(YELLOW_LED_PIN, HIGH);
   digitalWrite(GREEN_LED_PIN, LOW);
-  Serial.printf("[ACTION] TIME started; outputs will remain active for %lu ms\\n",
+  Serial.printf("[ACTION] TIME started; outputs will remain active for %lu ms\n",
                 static_cast<unsigned long>(TIME_ACTION_MS));
   refreshClockDisplay();
 }
@@ -372,6 +372,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   handleCommand(payload, length);
 }
 
+void updateActions();
+
 void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) return;
   Serial.printf("[Wi-Fi] connecting to SSID %s\n", WIFI_SSID);
@@ -379,8 +381,11 @@ void connectWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   const uint32_t started = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - started < 15000) {
+    // Keep local visual feedback timing alive while networking retries.
+    updateActions();
     delay(250);
   }
+  updateActions();
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("[Wi-Fi] connected; NodeMCU IP: %s\n", WiFi.localIP().toString().c_str());
   } else {
@@ -454,7 +459,6 @@ void setup() {
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
-    safeOutputs();
     ntpSyncReceived = false;
     ntpConfiguredForCurrentConnection = false;
     if (wifiWasConnected) {

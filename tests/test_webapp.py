@@ -486,7 +486,7 @@ def test_low_hand_coverage_without_diagnostic_mode_still_rejects_before_inferenc
     assert model.calls == 0
 
 
-def test_iot_cannot_be_enabled_without_exactly_two_mappings(tmp_path):
+def test_iot_cannot_be_enabled_without_supported_mappings(tmp_path):
     svc = make_services(tmp_path, model=FakeModel())
     with TestClient(create_app(svc)) as client:
         health = client.get('/api/health').json()

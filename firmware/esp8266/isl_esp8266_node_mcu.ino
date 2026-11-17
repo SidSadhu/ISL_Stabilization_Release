@@ -4,6 +4,7 @@
  * Commands:
  *   quiet -> green LED + OLED "QUIET!" for 60 seconds + repeating 10 s ON / 10 s OFF buzzer pattern
  *   time  -> yellow LED + live IST clock for 60 seconds
+ *   i     -> both LEDs + 1 s ON / 1 s OFF buzzer + OLED welcome for 60 seconds
  *
  * MQTT contract: schema 1.0
  *   Subscribe: isl/command/v1 at QoS 1
@@ -56,7 +57,9 @@ constexpr uint8_t BUZZER_PIN = D7;         // GPIO13, direct active-HIGH 2-pin b
 constexpr uint8_t OLED_ADDRESS = 0x3C;
 constexpr uint32_t QUIET_ACTION_MS = 60000;
 constexpr uint32_t QUIET_BUZZER_PHASE_MS = 10000;  // 10 s ON, then 10 s OFF
+constexpr uint32_t WELCOME_BUZZER_PHASE_MS = 1000;  // 1 s ON, then 1 s OFF
 constexpr uint32_t TIME_ACTION_MS = 60000;  // Keep the live clock visible for 60 seconds
+constexpr uint32_t WELCOME_ACTION_MS = 60000;
 constexpr float MIN_IOT_CONFIDENCE = 0.30f;
 constexpr uint32_t MAX_COMMAND_TTL_SECONDS = 30;
 constexpr size_t MQTT_BUFFER_SIZE = 768;
@@ -66,10 +69,11 @@ WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 
-enum ActiveAction : uint8_t { ACTION_NONE, ACTION_QUIET, ACTION_TIME };
+enum ActiveAction : uint8_t { ACTION_NONE, ACTION_QUIET, ACTION_TIME, ACTION_WELCOME };
 ActiveAction activeAction = ACTION_NONE;
 uint32_t actionEndsAt = 0;
 uint32_t buzzerNextTransitionAt = 0;
+uint32_t buzzerPhaseMs = 0;
 bool buzzerPatternActive = false;
 bool buzzerOutputOn = false;
 uint32_t lastClockRefreshAt = 0;
@@ -138,20 +142,22 @@ void stopBuzzerPattern() {
   buzzerOff();
   buzzerPatternActive = false;
   buzzerNextTransitionAt = 0;
+  buzzerPhaseMs = 0;
 }
 
-void startBuzzerPattern() {
+void startBuzzerPattern(uint32_t phaseMs, const char* description) {
   stopBuzzerPattern();
   buzzerPatternActive = true;
+  buzzerPhaseMs = phaseMs;
   digitalWrite(BUZZER_PIN, HIGH);
   buzzerOutputOn = true;
-  buzzerNextTransitionAt = millis() + QUIET_BUZZER_PHASE_MS;
-  Serial.println("[BUZZER] QUIET pattern started: 10 s ON / 10 s OFF, repeating for 60 s");
+  buzzerNextTransitionAt = millis() + buzzerPhaseMs;
+  Serial.printf("[BUZZER] %s pattern started; alternating ON/OFF for 60 s\n", description);
 }
 
 void updateBuzzerPattern(uint32_t now) {
   if (!buzzerPatternActive ||
-      activeAction != ACTION_QUIET ||
+      (activeAction != ACTION_QUIET && activeAction != ACTION_WELCOME) ||
       static_cast<int32_t>(now - buzzerNextTransitionAt) < 0) {
     return;
   }
@@ -165,7 +171,7 @@ void updateBuzzerPattern(uint32_t now) {
     Serial.println("[BUZZER] ON phase started");
   }
 
-  buzzerNextTransitionAt = now + QUIET_BUZZER_PHASE_MS;
+  buzzerNextTransitionAt = now + buzzerPhaseMs;
 }
 
 void safeOutputs() {
@@ -244,10 +250,43 @@ void startQuietAction() {
   actionEndsAt = actionStartedAt + QUIET_ACTION_MS;
   digitalWrite(GREEN_LED_PIN, HIGH);
   digitalWrite(YELLOW_LED_PIN, LOW);
-  startBuzzerPattern();
+  startBuzzerPattern(QUIET_BUZZER_PHASE_MS, "QUIET 10 s");
   Serial.printf("[ACTION] QUIET started; outputs will remain active for %lu ms\n",
                 static_cast<unsigned long>(QUIET_ACTION_MS));
   showLines("QUIET!", "Green LED + beep");
+}
+
+void showWelcomeMessage() {
+  if (!oledReady) return;
+  // Dedicated text-only layout: no project header or status labels.
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextWrap(false);
+
+  display.setTextSize(2);
+  display.setCursor(22, 2);
+  display.println("Welcome");
+
+  display.setTextSize(1);
+  display.setCursor(22, 27);
+  display.println("Dr. Arpan Shah");
+
+  display.setTextSize(2);
+  display.setCursor(46, 45);
+  display.println("Sir");
+  display.display();
+}
+
+void startWelcomeAction() {
+  safeOutputs();
+  activeAction = ACTION_WELCOME;
+  actionEndsAt = millis() + WELCOME_ACTION_MS;
+  digitalWrite(GREEN_LED_PIN, HIGH);
+  digitalWrite(YELLOW_LED_PIN, HIGH);
+  startBuzzerPattern(WELCOME_BUZZER_PHASE_MS, "WELCOME 1 s");
+  Serial.printf("[ACTION] WELCOME started; both LEDs and buzzer pattern remain active for %lu ms\n",
+                static_cast<unsigned long>(WELCOME_ACTION_MS));
+  showWelcomeMessage();
 }
 
 void refreshClockDisplay() {
@@ -371,7 +410,8 @@ void handleCommand(const byte* payload, unsigned int length) {
 
   const bool isQuiet = sourceLabel == "quiet" && command == "QUIET_ACTION";
   const bool isTime = sourceLabel == "time" && command == "TIME_ACTION";
-  if (!isQuiet && !isTime) {
+  const bool isWelcome = sourceLabel == "i" && command == "WELCOME_ACTION";
+  if (!isQuiet && !isTime && !isWelcome) {
     reject(commandId, "command_not_allowlisted");
     return;
   }
@@ -392,9 +432,12 @@ void handleCommand(const byte* payload, unsigned int length) {
   if (isQuiet) {
     startQuietAction();
     publishAck(commandId, "acknowledged", "quiet_outputs_activated");
-  } else {
+  } else if (isTime) {
     startTimeAction();
     publishAck(commandId, "acknowledged", "time_display_activated");
+  } else {
+    startWelcomeAction();
+    publishAck(commandId, "acknowledged", "welcome_outputs_activated");
   }
 }
 

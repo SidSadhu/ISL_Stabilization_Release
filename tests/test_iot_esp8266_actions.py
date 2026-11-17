@@ -74,6 +74,50 @@ def test_iot_backend_requires_expected_sign_before_actuation():
     assert response["status"] == "expected_sign_required"
     assert services.mqtt is None
 
+def test_i_label_publishes_welcome_action_when_expected_sign_matches():
+    class Store:
+        def __init__(self):
+            self.events = []
+
+        def add_iot_event(self, event):
+            self.events.append(event)
+            return True
+
+        def update_publish(self, command_id, success, detail):
+            self.publish_result = (command_id, success, detail)
+
+    class Mqtt:
+        def __init__(self):
+            self.commands = []
+
+        def publish_command(self, payload):
+            self.commands.append(payload)
+            return True, "published"
+
+    store = Store()
+    mqtt = Mqtt()
+    services = SimpleNamespace(
+        settings=SimpleNamespace(
+            iot_lock_active=False, iot_min_confidence=0.30,
+            iot_cooldown_seconds=0.0, mqtt_ack_timeout_seconds=5.0,
+        ),
+        iot_enabled=True, iot_label_commands=MAPPINGS,
+        last_iot_command_epoch=0.0, store=store, mqtt=mqtt,
+    )
+    result = {
+        "capture_id": str(uuid.uuid4()), "predicted_label": "i", "expected_label": "i",
+        "confidence": 0.99, "outcome": "accepted", "status": "accepted",
+    }
+
+    response = asyncio.run(maybe_issue_iot_command(services, result))
+
+    assert response["command"] == "WELCOME_ACTION"
+    assert response["status"] == "pending"
+    assert len(mqtt.commands) == 1
+    assert mqtt.commands[0]["source_label"] == "i"
+    assert store.events[0]["mapped_command"] == "WELCOME_ACTION"
+
+
 
 def test_iot_default_threshold_is_thirty_percent():
     now = 1_800_000_000.0
@@ -230,7 +274,6 @@ def test_repository_esp8266_profile_contains_quiet_time_and_welcome():
     assert loaded_mappings == MAPPINGS
     assert "hello" not in loaded_mappings
     assert loaded_mappings["quiet"] == "QUIET_ACTION"
-    assert loaded_mappings == MAPPINGS
     assert loaded_mappings["i"] == "WELCOME_ACTION"
 
     default_map = json.loads((root / "config" / "iot_label_map.json").read_text(encoding="utf-8"))

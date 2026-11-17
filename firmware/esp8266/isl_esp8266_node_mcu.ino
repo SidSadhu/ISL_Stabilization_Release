@@ -71,6 +71,7 @@ ActiveAction activeAction = ACTION_NONE;
 uint32_t actionEndsAt = 0;
 uint32_t buzzerEndsAt = 0;
 uint32_t lastClockRefreshAt = 0;
+bool wifiWasConnected = false;
 
 String recentCommandIds[RECENT_ID_COUNT];
 String recentCaptureIds[RECENT_ID_COUNT];
@@ -144,6 +145,9 @@ void safeOutputs() {
 }
 
 void showReady() {
+  if (activeAction != ACTION_NONE) {
+    Serial.println("[ACTION] display timer expired; switching outputs OFF");
+  }
   safeOutputs();
   showLines("READY", "Waiting for ISL command");
 }
@@ -210,6 +214,8 @@ void startQuietAction() {
   digitalWrite(GREEN_LED_PIN, HIGH);
   digitalWrite(YELLOW_LED_PIN, LOW);
   startBuzzerBeep();
+  Serial.printf("[ACTION] QUIET started; outputs will remain active for %lu ms\\n",
+                static_cast<unsigned long>(QUIET_ACTION_MS));
   showLines("QUIET!", "Green LED + beep");
 }
 
@@ -248,6 +254,8 @@ void startTimeAction() {
   lastClockRefreshAt = 0;
   digitalWrite(YELLOW_LED_PIN, HIGH);
   digitalWrite(GREEN_LED_PIN, LOW);
+  Serial.printf("[ACTION] TIME started; outputs will remain active for %lu ms\\n",
+                static_cast<unsigned long>(TIME_ACTION_MS));
   refreshClockDisplay();
 }
 
@@ -449,10 +457,22 @@ void loop() {
     safeOutputs();
     ntpSyncReceived = false;
     ntpConfiguredForCurrentConnection = false;
+    if (wifiWasConnected) {
+      Serial.println("[Wi-Fi] connection lost; preserving the current local display/LED action until its timer expires");
+    }
+    wifiWasConnected = false;
+
+    // Do not call safeOutputs() here. A network interruption must not cancel
+    // an already accepted, finite local feedback action. updateActions() owns
+    // the action deadline and turns the outputs OFF at the configured time.
     connectWiFi();
   }
 
   if (WiFi.status() == WL_CONNECTED) {
+    if (!wifiWasConnected) {
+      Serial.println("[Wi-Fi] connection available");
+      wifiWasConnected = true;
+    }
     configureNtpAfterWiFiConnect();
     connectMQTT();
     if (mqtt.connected()) mqtt.loop();

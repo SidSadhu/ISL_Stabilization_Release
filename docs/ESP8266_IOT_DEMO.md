@@ -14,11 +14,12 @@ demonstration is explicitly opt-in and is not production certification.
 |---|---|---|
 | `quiet` | `QUIET_ACTION` | Green LED and OLED `QUIET!` remain active for 60 s; the directly connected 2-pin buzzer on D7 repeats 10 s ON / 10 s OFF for the duration of the action |
 | `time` | `TIME_ACTION` | Yellow LED and large live 24-hour IST clock remain visible for 60 s |
+| `i` | `WELCOME_ACTION` | Both LEDs stay ON; buzzer alternates 1 s ON / 1 s OFF; OLED shows only `Welcome`, `Dr. Arpan Shah`, `Sir` for 60 s |
 | `hello` | none | Text recognition only; no MQTT publication |
 
 The base `config/iot_label_map.json` remains empty for release compatibility.
 This feature branch adds a separate `config/iot_label_map.esp8266.json` profile
-containing only `quiet` and `time`. The mapping is independent of classifier output
+containing `quiet`, `time` and `i`. The new `i` mapping triggers a 60-second welcome action. The mapping is independent of classifier output
 ordering. `hello` is deliberately not mapped.
 
 Both recognition and IoT confidence thresholds are 0.30 (30%) for this local demo
@@ -42,7 +43,7 @@ also starts OFF on every application launch. Both protections must be addressed:
    and freezes it into the capture at START.
 3. Start the backend.
 4. Confirm `GET /api/health` reports `pre_iot_lockdown: false`,
-   `iot_mapping_count: 2`, `iot_expected_sign_match_required: true`, and no
+   `iot_mapping_count: 3`, `iot_expected_sign_match_required: true`, and no
    `iot_mapping_error`.
 5. Enable IoT using the existing UI toggle. It is session-local and starts OFF again
    after restarting the application.
@@ -113,7 +114,10 @@ The two-pin buzzer is treated by the selected firmware as active-HIGH: D7 HIGH
 activates it and D7 LOW turns it off. During the 60-second `quiet` action it
 repeats 10 seconds ON followed by 10 seconds OFF. This gives three 10-second
 ON periods separated by 10-second silent periods. At the 60-second deadline,
-the firmware turns the buzzer and LEDs OFF and returns the OLED to READY.
+the firmware turns the buzzer and LEDs OFF and returns the OLED to READY. During the
+60-second `i` action, both LEDs stay ON while the buzzer alternates 1 second ON / 1
+second OFF. The welcome OLED is text-only and shows exactly `Welcome`, `Dr. Arpan Shah`,
+and `Sir`, with no project header.
 
 **Electrical limitation:** The exact buzzer model, rated voltage and operating current
 have not been confirmed from the visible HXD marking. Espressif's ESP8266EX datasheet
@@ -182,7 +186,7 @@ python -m uvicorn isl_recognition.webapp:app --host 127.0.0.1 --port 8000
 
 Open the local app, confirm the model and MediaPipe are ready, then explicitly
 enable the IoT toggle. Do not proceed if the health API shows a mapping error,
-a mapping count other than two, or the lockdown is still active.
+a mapping count other than three, or the lockdown is still active.
 
 ## 7. Protocol and acknowledgement behaviour
 
@@ -220,11 +224,14 @@ that the subscriber processed the command.
    and confirm green LED, OLED `QUIET!`, the repeating 10 s ON / 10 s OFF buzzer pattern and a correlated acknowledgement.
 4. Select `time` as expected sign, perform it and confirm yellow LED, a live
    HH:MM:SS clock in Asia/Kolkata time, no buzzer and a correlated acknowledgement.
-5. Select `hello` as expected sign, perform it and confirm browser text only; hello
+5. Select `i` as expected sign, perform it and confirm both LEDs remain ON, the OLED
+   shows exactly the three welcome lines, and the buzzer alternates 1 s ON / 1 s OFF
+   until all outputs stop at 60 s.
+6. Select `hello` as expected sign, perform it and confirm browser text only; hello
    has no approved IoT mapping, so no device command is sent.
-6. Deliberately select `hello` but perform `quiet` (and vice versa). Confirm
+7. Deliberately select `hello` but perform `quiet` (and vice versa). Confirm
    `expected_sign_mismatch` and no hardware action.
-7. Test confidence below 0.30, unavailable broker and duplicate delivery.
+8. Test confidence below 0.30, unavailable broker and duplicate delivery.
    They must not cause an additional physical action.
 8. Turn IoT OFF in the UI when testing is complete. Remove
    `ISL_IOT_HARDWARE_DEMO` and `ISL_IOT_LABEL_MAP` from `.env`, or set the demo
@@ -237,7 +244,7 @@ or electrical safety. Record those separately after testing the real NodeMCU.
 
 ## 9. Known boundaries
 
-- Each visible feedback action lasts 60 seconds: QUIET keeps the green LED and `QUIET!` on the OLED; TIME keeps the yellow LED and live IST clock on the OLED. The QUIET buzzer repeats 10 seconds ON / 10 seconds OFF during the 60-second action, then turns OFF. HELLO is text-only. The device rejects additional actions while one is active.
+- Each visible feedback action lasts 60 seconds: QUIET keeps the green LED and `QUIET!` on the OLED; TIME keeps the yellow LED and live IST clock on the OLED. The QUIET buzzer repeats 10 seconds ON / 10 seconds OFF during the 60-second action, then turns OFF. For `i`, both LEDs remain ON and the buzzer alternates 1 second ON / 1 second OFF for the 60-second welcome action. HELLO is text-only. The device rejects additional actions while one is active.
 - The device requires working Wi-Fi and NTP before accepting commands.
 - Duplicate IDs are held in RAM for the current boot; device reboot clears that
   local cache. Server-side one-command-per-capture persistence remains in effect.

@@ -1,8 +1,9 @@
 {
   "schema_version": "1.0",
-  "description": "Owner-selected local ESP8266 hardware demo: quiet and time only. Use only with ISL_IOT_HARDWARE_DEMO=true.",
+  "description": "Owner-selected local ESP8266 hardware demo: quiet, time and i. Use only with ISL_IOT_HARDWARE_DEMO=true.",
   "mappings": {
     "quiet": "QUIET_ACTION",
-    "time": "TIME_ACTION"
+    "time": "TIME_ACTION",
+    "i": "WELCOME_ACTION"
   }
 }

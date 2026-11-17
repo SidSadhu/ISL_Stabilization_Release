@@ -14,7 +14,7 @@ demonstration is explicitly opt-in and is not production certification.
 |---|---|---|
 | `quiet` | `QUIET_ACTION` | Green LED and OLED `QUIET!` remain active for 60 s; the directly connected 2-pin buzzer on D7 repeats 10 s ON / 10 s OFF for the duration of the action |
 | `time` | `TIME_ACTION` | Yellow LED and large live 24-hour IST clock remain visible for 60 s |
-| `i` | `WELCOME_ACTION` | Both LEDs stay ON; buzzer alternates 1 s ON / 1 s OFF; OLED shows only `Welcome`, `Dr. Arpan Shah`, `Sir` for 60 s |
+| `i` | `WELCOME_ACTION` | Both LEDs stay ON; buzzer alternates 1 s ON / 1 s OFF; OLED shows only `Welcome`, `Dr. Arpan`, `Shah Sir` for 60 s |
 | `hello` | none | Text recognition only; no MQTT publication |
 
 The base `config/iot_label_map.json` remains empty for release compatibility.
@@ -116,8 +116,8 @@ repeats 10 seconds ON followed by 10 seconds OFF. This gives three 10-second
 ON periods separated by 10-second silent periods. At the 60-second deadline,
 the firmware turns the buzzer and LEDs OFF and returns the OLED to READY. During the
 60-second `i` action, both LEDs stay ON while the buzzer alternates 1 second ON / 1
-second OFF. The welcome OLED is text-only and shows exactly `Welcome`, `Dr. Arpan Shah`,
-and `Sir`, with no project header.
+second OFF. The welcome OLED is text-only and shows exactly `Welcome`, `Dr. Arpan`,
+and `Shah Sir`, with no project header.
 
 **Electrical limitation:** The exact buzzer model, rated voltage and operating current
 have not been confirmed from the visible HXD marking. Espressif's ESP8266EX datasheet

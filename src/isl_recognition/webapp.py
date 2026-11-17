@@ -325,7 +325,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
             "pre_iot_lockdown": svc.settings.iot_lock_active,
             "base_pre_iot_lockdown": svc.settings.pre_iot_lockdown,
             "iot_hardware_demo_enabled": svc.settings.iot_hardware_demo_enabled,
-            "iot_mapping_configured": len(svc.iot_label_commands) == 2,
+            "iot_mapping_configured": len(svc.iot_label_commands) in {2, 3},
             "iot_mapping_count": len(svc.iot_label_commands),
             "iot_mapping_error": svc.iot_mapping_error,
             "iot_min_confidence": svc.settings.iot_min_confidence,
@@ -465,12 +465,12 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
                 "pre_iot_lockdown": True,
                 "message": "IoT is locked in this pre-IoT release. No device command can be published.",
             }
-        if payload["enabled"] and len(svc.iot_label_commands) != 2:
+        if payload["enabled"] and len(svc.iot_label_commands) not in {2, 3}:
             svc.iot_enabled = False
             return {
                 "iot_enabled": False,
                 "pre_iot_lockdown": False,
-                "message": "IoT cannot be enabled until exactly two valid INCLUDE-50 sign mappings are configured.",
+                "message": "IoT cannot be enabled until two or three valid INCLUDE-50 sign mappings are configured.",
                 "iot_mapping_count": len(svc.iot_label_commands),
                 "iot_mapping_error": svc.iot_mapping_error,
             }

@@ -233,7 +233,7 @@ that the subscriber processed the command.
    `expected_sign_mismatch` and no hardware action.
 8. Test confidence below 0.30, unavailable broker and duplicate delivery.
    They must not cause an additional physical action.
-8. Turn IoT OFF in the UI when testing is complete. Remove
+9. Turn IoT OFF in the UI when testing is complete. Remove
    `ISL_IOT_HARDWARE_DEMO` and `ISL_IOT_LABEL_MAP` from `.env`, or set the demo
    flag to false, then restart the backend to restore the default safety lock.
 

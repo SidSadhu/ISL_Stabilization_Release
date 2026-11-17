@@ -258,22 +258,25 @@ void startQuietAction() {
 
 void showWelcomeMessage() {
   if (!oledReady) return;
-  // Dedicated text-only layout: no project header or status labels.
+  // Dedicated text-only welcome screen. Keep the greeting smaller and
+  // center the guest's name across two large, equally prominent lines.
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
   display.setTextWrap(false);
 
-  display.setTextSize(2);
-  display.setCursor(22, 2);
+  // Default Adafruit GFX font is 6 px wide per character at text size 1.
+  display.setTextSize(1);
+  display.setCursor(43, 1);   // "Welcome" (7 chars) centered: 42 px wide.
   display.println("Welcome");
 
-  display.setTextSize(1);
-  display.setCursor(22, 27);
-  display.println("Dr. Arpan Shah");
+  display.setTextSize(2);
+  display.setCursor(10, 19);  // "Dr. Arpan" (9 chars) centered: 108 px wide.
+  display.println("Dr. Arpan");
 
   display.setTextSize(2);
-  display.setCursor(46, 45);
-  display.println("Sir");
+  display.setCursor(10, 42);  // "Shah, Sir" (9 chars) centered: 108 px wide.
+  display.println("Shah, Sir");
+
   display.display();
 }
 

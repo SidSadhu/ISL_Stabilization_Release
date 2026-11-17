@@ -38,6 +38,8 @@ def make_command(label: str = "quiet", confidence: float = 0.91, now: float = 1_
 
 @pytest.mark.parametrize("predicted,expected,matched", [
     ("quiet", "quiet", True),
+    ("i", "i", True),
+    ("i", "quiet", False),
     ("time", "quiet", False),
     ("quiet", "hello", False),
     ("quiet", None, False),

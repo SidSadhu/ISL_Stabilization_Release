@@ -496,6 +496,21 @@ def test_iot_cannot_be_enabled_without_supported_mappings(tmp_path):
         assert response['iot_enabled'] is False
         assert 'exactly two' in response['message']
 
+def test_three_sign_esp8266_mapping_is_reported_and_can_be_enabled(tmp_path):
+    svc = make_services(tmp_path, model=FakeModel())
+    svc.iot_label_commands = {
+        "quiet": "QUIET_ACTION",
+        "time": "TIME_ACTION",
+        "i": "WELCOME_ACTION",
+    }
+    with TestClient(create_app(svc)) as client:
+        health = client.get('/api/health').json()
+        assert health['iot_mapping_configured'] is True
+        assert health['iot_mapping_count'] == 3
+        enabled = client.post('/api/iot/enable', json={'enabled': True}).json()
+        assert enabled['iot_enabled'] is True
+        assert enabled['iot_mapping_count'] == 3
+
 
 def test_shared_030_threshold_allows_iot_when_expected_sign_matches(tmp_path):
     model = FakeModel(index=22, confidence=.30)

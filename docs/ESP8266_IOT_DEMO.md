@@ -12,7 +12,7 @@ demonstration is explicitly opt-in and is not production certification.
 
 | INCLUDE-50 label | MQTT command | ESP8266 response |
 |---|---|---|
-| `quiet` | `QUIET_ACTION` | Green LED and OLED `QUIET!` remain active for 60 s; active-LOW buzzer gives a short 140 ms confirmation beep |
+| `quiet` | `QUIET_ACTION` | Green LED and OLED `QUIET!` remain active for 60 s; the directly connected 2-pin buzzer is driven HIGH on D7 for a short 140 ms confirmation beep |
 | `time` | `TIME_ACTION` | Yellow LED and large live 24-hour IST clock remain visible for 60 s |
 | `hello` | none | Text recognition only; no MQTT publication |
 
@@ -102,14 +102,25 @@ Use the already-tested wiring:
 | OLED GND | GND | Common ground |
 | Green LED anode | D5 / GPIO14 through its own 220 Ω resistor | LED cathode to GND |
 | Yellow LED anode | D6 / GPIO12 through its own 220 Ω resistor | LED cathode to GND |
-| Buzzer I/O | D7 / GPIO13 | Active LOW |
-| Buzzer GND/VCC | GND / previously verified supply | Common ground |
+| 2-pin buzzer positive (+) | D7 / GPIO13 | Direct active-HIGH connection selected for this local test |
+| 2-pin buzzer negative (-) | GND | Common ground |
 
 OLED address is `0x3C`. The firmware uses the SSD1306 128x64 driver. Do not connect
 LEDs directly to GPIO without their 220-ohm current-limiting resistors. Do not move
 outputs to boot-strap pins D3, D4, or D8.
 
-All outputs are initialised OFF. The buzzer is active LOW: HIGH means OFF.
+The two-pin buzzer is treated by the selected firmware as active-HIGH: D7 HIGH
+activates it and D7 LOW turns it off. It is configured for a 140 ms pulse during
+the `quiet` action only.
+
+**Electrical limitation:** The exact buzzer model, rated voltage and operating current
+have not been confirmed from the visible HXD marking. Espressif's ESP8266EX datasheet
+lists a 12 mA maximum I/O current. Direct GPIO drive is therefore an experimental
+user-selected arrangement, not a verified safe electrical design. Do not assume
+that the buzzer is within the GPIO current limit. Stop the test immediately if the
+NodeMCU resets, heats, emits an unusual smell, or the buzzer behaves abnormally.
+A transistor driver is the recommended correction if the buzzer current exceeds the
+GPIO capability or remains unknown.
 
 ## 5. Arduino IDE setup and upload
 
@@ -133,7 +144,9 @@ remove that ignore rule or commit credentials. Open
 `firmware/esp8266/isl_esp8266_node_mcu.ino`, compile and upload.
 
 Open Serial Monitor at 115200 baud. The OLED should show boot, NTP synchronization
-and MQTT ready messages. The firmware starts SNTP only after Wi-Fi is connected and requires an actual
+and MQTT ready messages. Before running a mapped gesture, test the directly connected
+buzzer with one brief, observed `quiet` action. Verify that the NodeMCU remains stable
+and that the buzzer stops after approximately 140 ms. The firmware starts SNTP only after Wi-Fi is connected and requires an actual
 SNTP time-update callback for the current Wi-Fi connection before connecting to
 MQTT. A merely plausible Unix epoch is not treated as proof of synchronization.
 Command issue/expiry fields are integer Unix UTC epoch seconds.

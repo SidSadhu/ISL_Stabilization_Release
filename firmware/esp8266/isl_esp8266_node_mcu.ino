@@ -2,7 +2,7 @@
  * ISL INCLUDE-50 -> ESP8266 NodeMCU V3 hardware demo
  *
  * Commands:
- *   quiet -> green LED + OLED "QUIET!" for 60 seconds + short active-HIGH 2-pin buzzer beep
+ *   quiet -> green LED + OLED "QUIET!" for 60 seconds + a short 2-beep active-HIGH pattern
  *   time  -> yellow LED + live IST clock for 60 seconds
  *
  * MQTT contract: schema 1.0
@@ -55,7 +55,9 @@ constexpr uint8_t YELLOW_LED_PIN = D6;     // GPIO12
 constexpr uint8_t BUZZER_PIN = D7;         // GPIO13, direct active-HIGH 2-pin buzzer
 constexpr uint8_t OLED_ADDRESS = 0x3C;
 constexpr uint32_t QUIET_ACTION_MS = 60000;
-constexpr uint32_t QUIET_BEEP_MS = 140;
+constexpr uint32_t QUIET_BEEP_ON_MS = 90;
+constexpr uint32_t QUIET_BEEP_GAP_MS = 120;
+constexpr uint8_t QUIET_BEEP_COUNT = 2;
 constexpr uint32_t TIME_ACTION_MS = 60000;  // Keep the live clock visible for 60 seconds
 constexpr float MIN_IOT_CONFIDENCE = 0.30f;
 constexpr uint32_t MAX_COMMAND_TTL_SECONDS = 30;
@@ -69,7 +71,10 @@ Adafruit_SSD1306 display(128, 64, &Wire, -1);
 enum ActiveAction : uint8_t { ACTION_NONE, ACTION_QUIET, ACTION_TIME };
 ActiveAction activeAction = ACTION_NONE;
 uint32_t actionEndsAt = 0;
-uint32_t buzzerEndsAt = 0;
+uint32_t buzzerNextTransitionAt = 0;
+uint8_t buzzerBeepsStarted = 0;
+bool buzzerPatternActive = false;
+bool buzzerOutputOn = false;
 uint32_t lastClockRefreshAt = 0;
 bool wifiWasConnected = false;
 
@@ -125,22 +130,59 @@ void showLines(const String& line1, const String& line2 = "",
 }
 
 // Direct two-pin active-buzzer control selected for this local hardware demo.
- // Buzzer positive terminal is connected to D7 and negative terminal to GND.
- // HIGH activates the buzzer; LOW switches it off.
+// Buzzer positive terminal is connected to D7 and negative terminal to GND.
+// HIGH activates the buzzer; LOW switches it off.
 void buzzerOff() {
   digitalWrite(BUZZER_PIN, LOW);
-  buzzerEndsAt = 0;
+  buzzerOutputOn = false;
 }
 
-void startBuzzerBeep() {
+void stopBuzzerPattern() {
+  buzzerOff();
+  buzzerPatternActive = false;
+  buzzerNextTransitionAt = 0;
+  buzzerBeepsStarted = 0;
+}
+
+void startBuzzerPattern() {
+  stopBuzzerPattern();
+  buzzerPatternActive = true;
+  buzzerBeepsStarted = 1;
   digitalWrite(BUZZER_PIN, HIGH);
-  buzzerEndsAt = millis() + QUIET_BEEP_MS;
+  buzzerOutputOn = true;
+  buzzerNextTransitionAt = millis() + QUIET_BEEP_ON_MS;
+  Serial.println("[BUZZER] QUIET confirmation pattern started: 2 short beeps");
+}
+
+void updateBuzzerPattern(uint32_t now) {
+  if (!buzzerPatternActive ||
+      static_cast<int32_t>(now - buzzerNextTransitionAt) < 0) {
+    return;
+  }
+
+  if (buzzerOutputOn) {
+    buzzerOff();
+
+    if (buzzerBeepsStarted >= QUIET_BEEP_COUNT) {
+      buzzerPatternActive = false;
+      buzzerNextTransitionAt = 0;
+      Serial.println("[BUZZER] QUIET confirmation pattern completed");
+    } else {
+      buzzerNextTransitionAt = now + QUIET_BEEP_GAP_MS;
+    }
+    return;
+  }
+
+  digitalWrite(BUZZER_PIN, HIGH);
+  buzzerOutputOn = true;
+  ++buzzerBeepsStarted;
+  buzzerNextTransitionAt = now + QUIET_BEEP_ON_MS;
 }
 
 void safeOutputs() {
   digitalWrite(GREEN_LED_PIN, LOW);
   digitalWrite(YELLOW_LED_PIN, LOW);
-  buzzerOff();
+  stopBuzzerPattern();
   activeAction = ACTION_NONE;
 }
 
@@ -213,7 +255,7 @@ void startQuietAction() {
   actionEndsAt = actionStartedAt + QUIET_ACTION_MS;
   digitalWrite(GREEN_LED_PIN, HIGH);
   digitalWrite(YELLOW_LED_PIN, LOW);
-  startBuzzerBeep();
+  startBuzzerPattern();
   Serial.printf("[ACTION] QUIET started; outputs will remain active for %lu ms\n",
                 static_cast<unsigned long>(QUIET_ACTION_MS));
   showLines("QUIET!", "Green LED + beep");
@@ -417,9 +459,7 @@ void connectMQTT() {
 
 void updateActions() {
   const uint32_t now = millis();
-  if (buzzerEndsAt && static_cast<int32_t>(now - buzzerEndsAt) >= 0) {
-    buzzerOff();
-  }
+  updateBuzzerPattern(now);
   if (activeAction == ACTION_TIME && now - lastClockRefreshAt >= 250) {
     lastClockRefreshAt = now;
     refreshClockDisplay();

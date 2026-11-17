@@ -2,7 +2,7 @@
  * ISL INCLUDE-50 -> ESP8266 NodeMCU V3 hardware demo
  *
  * Commands:
- *   quiet -> green LED + OLED "QUIET!" for 60 seconds + a short 2-beep active-HIGH pattern
+ *   quiet -> green LED + OLED "QUIET!" for 60 seconds + repeating 10 s ON / 10 s OFF buzzer pattern
  *   time  -> yellow LED + live IST clock for 60 seconds
  *
  * MQTT contract: schema 1.0
@@ -55,9 +55,7 @@ constexpr uint8_t YELLOW_LED_PIN = D6;     // GPIO12
 constexpr uint8_t BUZZER_PIN = D7;         // GPIO13, direct active-HIGH 2-pin buzzer
 constexpr uint8_t OLED_ADDRESS = 0x3C;
 constexpr uint32_t QUIET_ACTION_MS = 60000;
-constexpr uint32_t QUIET_BEEP_ON_MS = 90;
-constexpr uint32_t QUIET_BEEP_GAP_MS = 120;
-constexpr uint8_t QUIET_BEEP_COUNT = 2;
+constexpr uint32_t QUIET_BUZZER_PHASE_MS = 10000;  // 10 s ON, then 10 s OFF
 constexpr uint32_t TIME_ACTION_MS = 60000;  // Keep the live clock visible for 60 seconds
 constexpr float MIN_IOT_CONFIDENCE = 0.30f;
 constexpr uint32_t MAX_COMMAND_TTL_SECONDS = 30;
@@ -72,7 +70,6 @@ enum ActiveAction : uint8_t { ACTION_NONE, ACTION_QUIET, ACTION_TIME };
 ActiveAction activeAction = ACTION_NONE;
 uint32_t actionEndsAt = 0;
 uint32_t buzzerNextTransitionAt = 0;
-uint8_t buzzerBeepsStarted = 0;
 bool buzzerPatternActive = false;
 bool buzzerOutputOn = false;
 uint32_t lastClockRefreshAt = 0;
@@ -141,42 +138,34 @@ void stopBuzzerPattern() {
   buzzerOff();
   buzzerPatternActive = false;
   buzzerNextTransitionAt = 0;
-  buzzerBeepsStarted = 0;
 }
 
 void startBuzzerPattern() {
   stopBuzzerPattern();
   buzzerPatternActive = true;
-  buzzerBeepsStarted = 1;
   digitalWrite(BUZZER_PIN, HIGH);
   buzzerOutputOn = true;
-  buzzerNextTransitionAt = millis() + QUIET_BEEP_ON_MS;
-  Serial.println("[BUZZER] QUIET confirmation pattern started: 2 short beeps");
+  buzzerNextTransitionAt = millis() + QUIET_BUZZER_PHASE_MS;
+  Serial.println("[BUZZER] QUIET pattern started: 10 s ON / 10 s OFF, repeating for 60 s");
 }
 
 void updateBuzzerPattern(uint32_t now) {
   if (!buzzerPatternActive ||
+      activeAction != ACTION_QUIET ||
       static_cast<int32_t>(now - buzzerNextTransitionAt) < 0) {
     return;
   }
 
   if (buzzerOutputOn) {
     buzzerOff();
-
-    if (buzzerBeepsStarted >= QUIET_BEEP_COUNT) {
-      buzzerPatternActive = false;
-      buzzerNextTransitionAt = 0;
-      Serial.println("[BUZZER] QUIET confirmation pattern completed");
-    } else {
-      buzzerNextTransitionAt = now + QUIET_BEEP_GAP_MS;
-    }
-    return;
+    Serial.println("[BUZZER] OFF phase started");
+  } else {
+    digitalWrite(BUZZER_PIN, HIGH);
+    buzzerOutputOn = true;
+    Serial.println("[BUZZER] ON phase started");
   }
 
-  digitalWrite(BUZZER_PIN, HIGH);
-  buzzerOutputOn = true;
-  ++buzzerBeepsStarted;
-  buzzerNextTransitionAt = now + QUIET_BEEP_ON_MS;
+  buzzerNextTransitionAt = now + QUIET_BUZZER_PHASE_MS;
 }
 
 void safeOutputs() {
@@ -459,14 +448,19 @@ void connectMQTT() {
 
 void updateActions() {
   const uint32_t now = millis();
-  updateBuzzerPattern(now);
-  if (activeAction == ACTION_TIME && now - lastClockRefreshAt >= 250) {
-    lastClockRefreshAt = now;
-    refreshClockDisplay();
-  }
+
+  // The 60-second action deadline takes precedence over any buzzer transition.
   if (activeAction != ACTION_NONE &&
       static_cast<int32_t>(now - actionEndsAt) >= 0) {
     showReady();
+    return;
+  }
+
+  updateBuzzerPattern(now);
+
+  if (activeAction == ACTION_TIME && now - lastClockRefreshAt >= 250) {
+    lastClockRefreshAt = now;
+    refreshClockDisplay();
   }
 }
 

@@ -274,7 +274,7 @@ void showWelcomeMessage() {
   display.println("Dr. Arpan");
 
   display.setTextSize(2);
-  display.setCursor(10, 42);  // "Shah Sir" (9 chars) centered: 108 px wide.
+  display.setCursor(16, 42);  // "Shah Sir" (8 chars) centered: 96 px wide.
   display.println("Shah Sir");
 
   display.display();

@@ -20,8 +20,8 @@ from isl_recognition.iot_protocol import (
 from isl_recognition.webapp import maybe_issue_iot_command
 
 
-LABELS = {"hello": 22, "time": 43, "quiet": 34}
-MAPPINGS = {"quiet": "QUIET_ACTION", "time": "TIME_ACTION"}
+LABELS = {"hello": 22, "time": 43, "quiet": 34, "i": 25}
+MAPPINGS = {"quiet": "QUIET_ACTION", "time": "TIME_ACTION", "i": "WELCOME_ACTION"}
 
 
 def make_command(label: str = "quiet", confidence: float = 0.91, now: float = 1_800_000_000.0):
@@ -131,6 +131,7 @@ def test_hello_remains_unmapped():
 @pytest.mark.parametrize("label,expected", [
     ("quiet", "QUIET_ACTION"),
     ("time", "TIME_ACTION"),
+    ("i", "WELCOME_ACTION"),
 ])
 def test_build_and_validate_esp8266_commands(label, expected):
     now = 1_800_000_000.0
@@ -152,6 +153,7 @@ def test_simulator_acknowledges_quiet_and_time_once():
     for label, command_name in (
         ("quiet", "QUIET_ACTION"),
         ("time", "TIME_ACTION"),
+        ("i", "WELCOME_ACTION"),
     ):
         command = make_command(label=label)
         simulator = SimulatedESP32(MAPPINGS, min_confidence=0.30)
@@ -215,7 +217,7 @@ def test_explicit_local_hardware_demo_only_changes_effective_lock():
     assert settings.iot_lock_active is False
 
 
-def test_repository_esp8266_profile_contains_only_quiet_and_time():
+def test_repository_esp8266_profile_contains_quiet_time_and_welcome():
     root = Path(__file__).resolve().parents[1]
     label_map = json.loads((root / "config" / "label_map_include50.json").read_text(encoding="utf-8"))
     demo_map_path = root / "config" / "iot_label_map.esp8266.json"
@@ -223,10 +225,13 @@ def test_repository_esp8266_profile_contains_only_quiet_and_time():
     assert label_map["hello"] == 22
     assert label_map["time"] == 43
     assert label_map["quiet"] == 34
+    assert label_map["i"] == 25
     loaded_mappings = load_label_commands(demo_map_path, label_map)
     assert loaded_mappings == MAPPINGS
     assert "hello" not in loaded_mappings
     assert loaded_mappings["quiet"] == "QUIET_ACTION"
+    assert loaded_mappings == MAPPINGS
+    assert loaded_mappings["i"] == "WELCOME_ACTION"
 
     default_map = json.loads((root / "config" / "iot_label_map.json").read_text(encoding="utf-8"))
     assert default_map["mappings"] == {}

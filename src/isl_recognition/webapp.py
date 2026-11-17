@@ -470,7 +470,7 @@ def create_app(services: RuntimeServices | None = None) -> FastAPI:
             return {
                 "iot_enabled": False,
                 "pre_iot_lockdown": False,
-                "message": "IoT cannot be enabled until two or three valid INCLUDE-50 sign mappings are configured.",
+                "message": "IoT cannot be enabled until exactly two or three valid INCLUDE-50 sign mappings are configured.",
                 "iot_mapping_count": len(svc.iot_label_commands),
                 "iot_mapping_error": svc.iot_mapping_error,
             }

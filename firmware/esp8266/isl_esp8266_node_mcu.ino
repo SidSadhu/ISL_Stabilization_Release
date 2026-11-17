@@ -2,7 +2,7 @@
  * ISL INCLUDE-50 -> ESP8266 NodeMCU V3 hardware demo
  *
  * Commands:
- *   quiet -> green LED + OLED "QUIET!" for 60 seconds + short active-LOW buzzer beep
+ *   quiet -> green LED + OLED "QUIET!" for 60 seconds + short active-HIGH 2-pin buzzer beep
  *   time  -> yellow LED + live IST clock for 60 seconds
  *
  * MQTT contract: schema 1.0
@@ -52,7 +52,7 @@ constexpr uint8_t OLED_SDA_PIN = D2;       // GPIO4
 constexpr uint8_t OLED_SCL_PIN = D1;       // GPIO5
 constexpr uint8_t GREEN_LED_PIN = D5;      // GPIO14
 constexpr uint8_t YELLOW_LED_PIN = D6;     // GPIO12
-constexpr uint8_t BUZZER_PIN = D7;         // GPIO13, active LOW
+constexpr uint8_t BUZZER_PIN = D7;         // GPIO13, direct active-HIGH 2-pin buzzer
 constexpr uint8_t OLED_ADDRESS = 0x3C;
 constexpr uint32_t QUIET_ACTION_MS = 60000;
 constexpr uint32_t QUIET_BEEP_MS = 140;
@@ -123,12 +123,24 @@ void showLines(const String& line1, const String& line2 = "",
   display.display();
 }
 
+// Direct two-pin active-buzzer control selected for this local hardware demo.
+ // Buzzer positive terminal is connected to D7 and negative terminal to GND.
+ // HIGH activates the buzzer; LOW switches it off.
+void buzzerOff() {
+  digitalWrite(BUZZER_PIN, LOW);
+  buzzerEndsAt = 0;
+}
+
+void startBuzzerBeep() {
+  digitalWrite(BUZZER_PIN, HIGH);
+  buzzerEndsAt = millis() + QUIET_BEEP_MS;
+}
+
 void safeOutputs() {
   digitalWrite(GREEN_LED_PIN, LOW);
   digitalWrite(YELLOW_LED_PIN, LOW);
-  digitalWrite(BUZZER_PIN, HIGH);  // active-LOW buzzer: HIGH = OFF
+  buzzerOff();
   activeAction = ACTION_NONE;
-  buzzerEndsAt = 0;
 }
 
 void showReady() {
@@ -195,10 +207,9 @@ void startQuietAction() {
   activeAction = ACTION_QUIET;
   const uint32_t actionStartedAt = millis();
   actionEndsAt = actionStartedAt + QUIET_ACTION_MS;
-  buzzerEndsAt = actionStartedAt + QUIET_BEEP_MS;
   digitalWrite(GREEN_LED_PIN, HIGH);
   digitalWrite(YELLOW_LED_PIN, LOW);
-  digitalWrite(BUZZER_PIN, LOW);
+  startBuzzerBeep();
   showLines("QUIET!", "Green LED + beep");
 }
 
@@ -237,7 +248,6 @@ void startTimeAction() {
   lastClockRefreshAt = 0;
   digitalWrite(YELLOW_LED_PIN, HIGH);
   digitalWrite(GREEN_LED_PIN, LOW);
-  digitalWrite(BUZZER_PIN, HIGH);
   refreshClockDisplay();
 }
 
@@ -395,8 +405,7 @@ void connectMQTT() {
 void updateActions() {
   const uint32_t now = millis();
   if (buzzerEndsAt && static_cast<int32_t>(now - buzzerEndsAt) >= 0) {
-    digitalWrite(BUZZER_PIN, HIGH);
-    buzzerEndsAt = 0;
+    buzzerOff();
   }
   if (activeAction == ACTION_TIME && now - lastClockRefreshAt >= 250) {
     lastClockRefreshAt = now;
@@ -411,6 +420,7 @@ void updateActions() {
 void setup() {
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
   pinMode(BUZZER_PIN, OUTPUT);
   safeOutputs();
 

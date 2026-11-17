@@ -67,8 +67,8 @@
       if (policyHint) {
         if (h.pre_iot_lockdown) {
           policyHint.textContent = 'Safety lock active. The backend will not publish device commands; recognition and text output remain available.';
-        } else if (h.iot_mapping_error || Number(h.iot_mapping_count) !== 2) {
-          policyHint.textContent = 'Local demo override is active, but the two-sign hardware mapping is not valid. Device commands remain unavailable until the mapping is fixed.';
+        } else if (h.iot_mapping_error || ![2, 3].includes(Number(h.iot_mapping_count))) {
+          policyHint.textContent = 'Local demo override is active, but the two- or three-sign hardware mapping is not valid. Device commands remain unavailable until the mapping is fixed.';
         } else {
           policyHint.textContent = 'Local ESP8266 demo profile is active. IoT starts OFF and must be enabled separately. Every new capture re-checks the expected sign, confidence and approved mapping.';
         }

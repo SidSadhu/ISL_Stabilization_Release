@@ -12,7 +12,7 @@ demonstration is explicitly opt-in and is not production certification.
 
 | INCLUDE-50 label | MQTT command | ESP8266 response |
 |---|---|---|
-| `quiet` | `QUIET_ACTION` | Green LED and OLED `QUIET!` remain active for 60 s; the directly connected 2-pin buzzer is driven HIGH on D7 for a short 140 ms confirmation beep |
+| `quiet` | `QUIET_ACTION` | Green LED and OLED `QUIET!` remain active for 60 s; the directly connected 2-pin buzzer on D7 gives two 90 ms beeps separated by a 120 ms silent gap (approximately 300 ms total) |
 | `time` | `TIME_ACTION` | Yellow LED and large live 24-hour IST clock remain visible for 60 s |
 | `hello` | none | Text recognition only; no MQTT publication |
 
@@ -110,8 +110,9 @@ LEDs directly to GPIO without their 220-ohm current-limiting resistors. Do not m
 outputs to boot-strap pins D3, D4, or D8.
 
 The two-pin buzzer is treated by the selected firmware as active-HIGH: D7 HIGH
-activates it and D7 LOW turns it off. It is configured for a 140 ms pulse during
-the `quiet` action only.
+activates it and D7 LOW turns it off. During the `quiet` action it produces two
+90 ms beeps separated by a 120 ms silent gap. The buzzer is then OFF while the
+visual feedback remains active for the rest of the 60-second action.
 
 **Electrical limitation:** The exact buzzer model, rated voltage and operating current
 have not been confirmed from the visible HXD marking. Espressif's ESP8266EX datasheet
@@ -146,7 +147,7 @@ remove that ignore rule or commit credentials. Open
 Open Serial Monitor at 115200 baud. The OLED should show boot, NTP synchronization
 and MQTT ready messages. Before running a mapped gesture, test the directly connected
 buzzer with one brief, observed `quiet` action. Verify that the NodeMCU remains stable
-and that the buzzer stops after approximately 140 ms. The firmware starts SNTP only after Wi-Fi is connected and requires an actual
+and that the buzzer performs two short beeps, then remains silent. The firmware starts SNTP only after Wi-Fi is connected and requires an actual
 SNTP time-update callback for the current Wi-Fi connection before connecting to
 MQTT. A merely plausible Unix epoch is not treated as proof of synchronization.
 Command issue/expiry fields are integer Unix UTC epoch seconds.
@@ -215,7 +216,7 @@ that the subscriber processed the command.
 2. Opt in locally, restart the server, verify the health response, then enable the
    UI toggle.
 3. Select `quiet` as expected sign, perform it with confidence at or above 0.30,
-   and confirm green LED, OLED `QUIET!`, short beep and a correlated acknowledgement.
+   and confirm green LED, OLED `QUIET!`, two short beeps and a correlated acknowledgement.
 4. Select `time` as expected sign, perform it and confirm yellow LED, a live
    HH:MM:SS clock in Asia/Kolkata time, no buzzer and a correlated acknowledgement.
 5. Select `hello` as expected sign, perform it and confirm browser text only; hello
@@ -235,7 +236,7 @@ or electrical safety. Record those separately after testing the real NodeMCU.
 
 ## 9. Known boundaries
 
-- Each visible feedback action lasts 60 seconds: QUIET keeps the green LED and `QUIET!` on the OLED; TIME keeps the yellow LED and live IST clock on the OLED. The QUIET buzzer remains a brief 140 ms confirmation beep. HELLO is text-only. The device rejects additional actions while one is active.
+- Each visible feedback action lasts 60 seconds: QUIET keeps the green LED and `QUIET!` on the OLED; TIME keeps the yellow LED and live IST clock on the OLED. The QUIET buzzer gives two 90 ms confirmation beeps separated by a 120 ms silent gap, then remains OFF. HELLO is text-only. The device rejects additional actions while one is active.
 - The device requires working Wi-Fi and NTP before accepting commands.
 - Duplicate IDs are held in RAM for the current boot; device reboot clears that
   local cache. Server-side one-command-per-capture persistence remains in effect.
